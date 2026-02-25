@@ -89,8 +89,8 @@ export default async function AdminCustomersPage() {
                                             <td className="px-6 py-5 text-gray-300">{joinDate}</td>
                                             <td className="px-6 py-5">
                                                 <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${customer.onboarding_completed
-                                                        ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                                        : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                                    : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
                                                     }`}>
                                                     {customer.onboarding_completed ? 'Verified' : 'Pending'}
                                                 </span>
