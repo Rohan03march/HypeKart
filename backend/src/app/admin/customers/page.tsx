@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MoreHorizontal, Download, Mail } from "lucide-react";
 import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabase";
+import CustomerRowActions from "./CustomerRowActions";
 
 export const dynamic = 'force-dynamic';
 
@@ -97,9 +98,9 @@ export default async function AdminCustomersPage() {
                                                 </span>
                                             </td>
                                             <td className="px-8 py-5 text-right">
-                                                <Link href={`/admin/customers/${customer.id}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Link>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <CustomerRowActions clerkId={customer.clerk_id} customerId={customer.id} customerName={customer.full_name} />
+                                                </div>
                                             </td>
                                         </tr>
                                     );
