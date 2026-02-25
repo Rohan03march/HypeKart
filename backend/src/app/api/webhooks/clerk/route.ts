@@ -48,9 +48,16 @@ export async function POST(req: Request) {
 
     // Handle User Created Event
     if (evt.type === 'user.created') {
-        const { id, email_addresses, first_name, last_name, image_url } = evt.data
+        const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, created_at } = evt.data
         const email = email_addresses?.[0]?.email_address
-        const full_name = [first_name, last_name].filter(Boolean).join(' ') || null
+
+        // Name fallback logic (mobile app saves to unsafe_metadata)
+        const metaName = unsafe_metadata?.name as string | undefined;
+        let full_name = metaName || [first_name, last_name].filter(Boolean).join(' ') || null;
+        if (full_name && full_name.trim() === '') full_name = null;
+
+        // Onboarding completed flag (anyone registered via Clerk is successfully logged in)
+        const onboarding_completed = true;
 
         if (email) {
             const uuid = crypto.randomUUID()
@@ -61,6 +68,9 @@ export async function POST(req: Request) {
                 full_name: full_name,
                 avatar_url: image_url,
                 role: 'customer',
+                onboarding_completed: onboarding_completed,
+                created_at: new Date(created_at).toISOString()
+
             })
             if (error) {
                 console.error('Error inserting user to Supabase:', error)
@@ -71,9 +81,16 @@ export async function POST(req: Request) {
 
     // Handle User Updated Event
     if (evt.type === 'user.updated') {
-        const { id, email_addresses, first_name, last_name, image_url } = evt.data
+        const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data
         const email = email_addresses?.[0]?.email_address
-        const full_name = [first_name, last_name].filter(Boolean).join(' ') || null
+
+        // Name fallback logic
+        const metaName = unsafe_metadata?.name as string | undefined;
+        let full_name = metaName || [first_name, last_name].filter(Boolean).join(' ') || null;
+        if (full_name && full_name.trim() === '') full_name = null;
+
+        // Onboarding completed flag (anyone registered via Clerk is successfully logged in)
+        const onboarding_completed = true;
 
         if (email) {
             const { error } = await supabaseAdmin
@@ -82,6 +99,7 @@ export async function POST(req: Request) {
                     email: email,
                     full_name: full_name,
                     avatar_url: image_url,
+                    onboarding_completed: onboarding_completed
                 })
                 .eq('clerk_id', id)
 

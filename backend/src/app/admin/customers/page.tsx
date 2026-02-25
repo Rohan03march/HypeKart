@@ -59,7 +59,8 @@ export default async function AdminCustomersPage() {
                                 </tr>
                             ) : (
                                 displayCustomers.map((customer) => {
-                                    const joinDate = new Date(customer.created_at).toLocaleDateString(undefined, {
+                                    const joinDate = new Date(customer.created_at).toLocaleDateString('en-IN', {
+                                        timeZone: 'Asia/Kolkata',
                                         year: 'numeric',
                                         month: 'short',
                                         day: 'numeric'

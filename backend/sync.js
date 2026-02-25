@@ -48,7 +48,14 @@ async function runSync() {
                 const role = clerkUser.public_metadata?.role || 'customer';
                 const emailObj = clerkUser.email_addresses?.find((e) => e.id === clerkUser.primary_email_address_id) || clerkUser.email_addresses?.[0];
                 const email = emailObj?.email_address;
-                const full_name = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || null;
+
+                // Name fallback logic (mobile app saves to unsafe_metadata)
+                const metaName = clerkUser.unsafe_metadata?.name;
+                let full_name = metaName || [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || null;
+                if (full_name && full_name.trim() === '') full_name = null;
+
+                // Onboarding completed flag (anyone registered via Clerk is successfully logged in)
+                const onboarding_completed = true;
 
                 if (email) {
                     const uuid = crypto.randomUUID();
@@ -58,7 +65,9 @@ async function runSync() {
                         email: email,
                         full_name: full_name,
                         avatar_url: clerkUser.image_url,
-                        role: role
+                        role: role,
+                        onboarding_completed: onboarding_completed,
+                        created_at: new Date(clerkUser.created_at).toISOString()
                     });
 
                     if (insertErr) {
