@@ -3,7 +3,7 @@
 
 -- 1. Create the Users Table (Public profiles extending auth.users)
 CREATE TABLE IF NOT EXISTS public.users (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+    id UUID ON DELETE CASCADE PRIMARY KEY,
     clerk_id TEXT, -- Legacy ID or internal tracking
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
