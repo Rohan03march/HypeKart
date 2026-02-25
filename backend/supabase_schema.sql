@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     full_name TEXT,
     role TEXT DEFAULT 'customer' CHECK (role IN ('customer', 'admin')),
     onboarding_completed BOOLEAN DEFAULT false,
+    avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
