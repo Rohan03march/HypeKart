@@ -27,3 +27,15 @@ export async function banCustomerAction(clerkId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function unbanCustomerAction(clerkId: string) {
+    try {
+        const client = await clerkClient();
+        await client.users.unbanUser(clerkId);
+        revalidatePath('/admin/customers');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error unbanning user:", error);
+        return { success: false, error: error.message };
+    }
+}

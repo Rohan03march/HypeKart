@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, Trash2, Ban } from "lucide-react";
-import { deleteCustomerAction, banCustomerAction } from "./actions";
+import { MoreHorizontal, Trash2, Ban, CheckCircle } from "lucide-react";
+import { deleteCustomerAction, banCustomerAction, unbanCustomerAction } from "./actions";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -107,6 +107,29 @@ export default function CustomerRowActions({ clerkId, customerName, customerId }
         }
     }
 
+    const handleUnban = async () => {
+        const confirmUnban = window.confirm(`Are you sure you want to reactivate ${customerName || 'this user'}? They will be allowed to log in again.`);
+
+        if (confirmUnban) {
+            setIsLoading(true);
+            try {
+                const result = await unbanCustomerAction(clerkId);
+                if (result.success) {
+                    setIsOpen(false);
+                    alert("User successfully reactivated.");
+                    router.refresh();
+                } else {
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("An unexpected error occurred.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    }
+
     return (
         <div className="relative inline-block text-left">
             <button
@@ -125,6 +148,14 @@ export default function CustomerRowActions({ clerkId, customerName, customerId }
                     className="absolute w-48 rounded-2xl border border-white/10 bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl z-[100] overflow-hidden origin-top-right transform transition-all duration-200 ease-out"
                 >
                     <div className="p-1">
+                        <button
+                            onClick={handleUnban}
+                            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-green-400 hover:text-green-300 hover:bg-white/5 rounded-xl transition-colors disabled:opacity-50"
+                            disabled={isLoading}
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            {isLoading ? "Processing..." : "Activate User"}
+                        </button>
                         <button
                             onClick={handleBan}
                             className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-orange-400 hover:text-orange-300 hover:bg-white/5 rounded-xl transition-colors disabled:opacity-50"
