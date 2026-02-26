@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useUser } from '@clerk/clerk-expo';
@@ -7,6 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { supabase } from '../../lib/supabase';
+import { useWishlistStore } from '../../store/wishlistStore';
 
 const { width } = Dimensions.get('window');
 
@@ -17,65 +19,58 @@ const CATEGORIES = [
     { id: '4', name: 'Accessories' },
     { id: '5', name: 'Objects' },
 ];
-
-const TRENDING_PRODUCTS = [
-    {
-        id: 'p1',
-        title: 'Essential Oversized Hoodie',
-        brand: 'HYPEKART CORP',
-        price: 85,
-        image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop',
-    },
-    {
-        id: 'p2',
-        title: 'Retro High OG',
-        brand: 'AIR CLASSIC',
-        price: 180,
-        image: 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=600&auto=format&fit=crop',
-    },
-    {
-        id: 'p3',
-        title: 'Vintage Logo Cap',
-        brand: 'CLASSIC FITS',
-        price: 45,
-        image: 'https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?q=80&w=600&auto=format&fit=crop',
-    },
-];
-
-const NEW_ARRIVALS = [
-    {
-        id: 'n1',
-        title: 'Premium Cargo Pants',
-        price: 120,
-        image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=600&auto=format&fit=crop',
-    },
-    {
-        id: 'n2',
-        title: 'Graphic Tee',
-        price: 55,
-        image: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=600&auto=format&fit=crop',
-    },
-    {
-        id: 'n3',
-        title: 'Tactical Bag',
-        price: 95,
-        image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=600&auto=format&fit=crop',
-    },
-    {
-        id: 'n4',
-        title: 'Relaxed Short',
-        price: 70,
-        image: 'https://images.unsplash.com/photo-1591195853828-11db59a44f43?q=80&w=600&auto=format&fit=crop',
-    },
-];
-
 export default function HomeScreen() {
     const { user } = useUser();
     const navigation = useNavigation<any>();
     const [activeCategory, setActiveCategory] = useState('1');
-    const [liked, setLiked] = useState<Record<string, boolean>>({});
+    const { toggle, isWishlisted } = useWishlistStore();
 
-    const toggleLike = (id: string) => setLiked(prev => ({ ...prev, [id]: !prev[id] }));
+    // Supabase Data States
+    const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
+    const [newArrivals, setNewArrivals] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch Trending (just taking the earliest products for now as "trending")
+            const { data: trendingData, error: trendingError } = await supabase
+                .from('products')
+                .select('*')
+                .order('created_at', { ascending: true })
+                .limit(6);
+
+            if (!trendingError && trendingData) {
+                setTrendingProducts(trendingData);
+            }
+
+            // Fetch New Drops
+            const { data: newData, error: newError } = await supabase
+                .from('products')
+                .select('*')
+                .eq('is_new_arrival', true)
+                .order('created_at', { ascending: false })
+                .limit(4);
+
+            if (!newError && newData) {
+                setNewArrivals(newData);
+            }
+        } catch (error) {
+            console.error("Error fetching products:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    const getPrimaryImage = (images: string[]) => {
+        if (images && images.length > 0) return images[0];
+        return 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop';
+    };
 
     return (
         <View style={styles.container}>
@@ -150,19 +145,41 @@ export default function HomeScreen() {
                         snapToInterval={200}
                         decelerationRate="fast"
                     >
-                        {TRENDING_PRODUCTS.map((prod) => (
+                        {isLoading ? (
+                            <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
+                        ) : trendingProducts.map((prod) => (
                             <TouchableOpacity key={prod.id} style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { product: prod })}>
                                 <View style={styles.productImgWrapper}>
-                                    <Image source={{ uri: prod.image }} style={styles.productImg} resizeMode="cover" />
+                                    <Image source={{ uri: getPrimaryImage(prod.images) }} style={styles.productImg} resizeMode="cover" />
                                     <View style={styles.productImgOverlay} />
-                                    <TouchableOpacity onPress={() => toggleLike(prod.id)} style={styles.heartBtn}>
+                                    <TouchableOpacity
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            toggle({
+                                                id: prod.id,
+                                                title: prod.title,
+                                                brand: prod.brand || 'HYPEKART',
+                                                price: prod.base_price,
+                                                image: getPrimaryImage(prod.images),
+                                                images: prod.images,
+                                                description: prod.description,
+                                                sizes: prod.sizes,
+                                                colors: prod.colors,
+                                            });
+                                        }}
+                                        style={styles.heartBtn}
+                                    >
                                         <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-                                        <Ionicons name={liked[prod.id] ? "heart" : "heart-outline"} size={18} color={liked[prod.id] ? "#000" : "#fff"} />
+                                        <Ionicons
+                                            name={isWishlisted(prod.id) ? 'heart' : 'heart-outline'}
+                                            size={18}
+                                            color={isWishlisted(prod.id) ? '#ff4b4b' : '#fff'}
+                                        />
                                     </TouchableOpacity>
                                 </View>
-                                <Typography style={styles.productBrand}>{prod.brand}</Typography>
+                                <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
                                 <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
-                                <Typography style={styles.productPrice}>${prod.price}</Typography>
+                                <Typography style={styles.productPrice}>₹{prod.base_price?.toLocaleString('en-IN')}</Typography>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -173,14 +190,40 @@ export default function HomeScreen() {
                     </View>
 
                     <View style={styles.newGrid}>
-                        {NEW_ARRIVALS.map((item) => (
-                            <TouchableOpacity key={item.id} style={styles.newGridCard}>
+                        {isLoading ? (
+                            <ActivityIndicator color="#000" style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
+                        ) : newArrivals.map((item) => (
+                            <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
                                 <View style={styles.newGridImgWrapper}>
-                                    <Image source={{ uri: item.image }} style={styles.productImg} resizeMode="cover" />
+                                    <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
+                                    <TouchableOpacity
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            toggle({
+                                                id: item.id,
+                                                title: item.title,
+                                                brand: item.brand || 'HYPEKART',
+                                                price: item.base_price,
+                                                image: getPrimaryImage(item.images),
+                                                images: item.images,
+                                                description: item.description,
+                                                sizes: item.sizes,
+                                                colors: item.colors,
+                                            });
+                                        }}
+                                        style={styles.heartBtn}
+                                    >
+                                        <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+                                        <Ionicons
+                                            name={isWishlisted(item.id) ? 'heart' : 'heart-outline'}
+                                            size={18}
+                                            color={isWishlisted(item.id) ? '#ff4b4b' : '#fff'}
+                                        />
+                                    </TouchableOpacity>
                                 </View>
                                 <View style={styles.newGridInfo}>
                                     <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
-                                    <Typography style={styles.productPrice}>${item.price}</Typography>
+                                    <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
                                 </View>
                             </TouchableOpacity>
                         ))}

@@ -52,13 +52,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     },
 
     updateQuantity: (id, quantity) => {
-        if (quantity <= 0) {
-            get().removeItem(id);
-            return;
-        }
+        // Minimum quantity is 1 — use removeItem (X button) to fully remove
+        const clamped = Math.max(1, quantity);
         set((state) => ({
             items: state.items.map((item) =>
-                item.id === id ? { ...item, quantity } : item
+                item.id === id ? { ...item, quantity: clamped } : item
             ),
         }));
     },

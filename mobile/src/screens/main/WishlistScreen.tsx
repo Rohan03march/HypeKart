@@ -1,45 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-
-const MOCK_WISHLIST = [
-    {
-        id: 'w1',
-        title: 'Essential Layering Hoodie',
-        price: 85,
-        image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop',
-        brand: 'HYPEKART STUDIOS',
-    },
-    {
-        id: 'w2',
-        title: 'Retro High OG',
-        price: 180,
-        image: 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=600&auto=format&fit=crop',
-        brand: 'AIR CLASSIC',
-    },
-    {
-        id: 'w3',
-        title: 'Premium Cargo Pants',
-        price: 120,
-        image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=600&auto=format&fit=crop',
-        brand: 'URBAN THREAD',
-    },
-];
+import { useWishlistStore } from '../../store/wishlistStore';
 
 export default function WishlistScreen() {
     const navigation = useNavigation<any>();
-    const [wishlist, setWishlist] = useState(MOCK_WISHLIST);
+    const { items, removeItem } = useWishlistStore();
 
-    const removeFromWishlist = (id: string) => {
-        setWishlist(prev => prev.filter(item => item.id !== id));
-    };
-
-    if (wishlist.length === 0) {
+    if (items.length === 0) {
         return (
             <SafeAreaView style={styles.emptyContainer}>
                 <View style={styles.emptyIconContainer}>
@@ -72,12 +44,28 @@ export default function WishlistScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <Typography style={styles.headerTitle}>Wishlist</Typography>
-                <Typography style={styles.headerSubtitle}>{wishlist.length} items</Typography>
+                <Typography style={styles.headerSubtitle}>{items.length} items</Typography>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 20 }}>
-                {wishlist.map((item) => (
-                    <View key={item.id} style={styles.wishlistCard}>
+                {items.map((item) => (
+                    <TouchableOpacity
+                        key={item.id}
+                        style={styles.wishlistCard}
+                        activeOpacity={0.85}
+                        onPress={() => navigation.navigate('ProductDetails', {
+                            product: {
+                                id: item.id,
+                                title: item.title,
+                                brand: item.brand,
+                                base_price: item.price,
+                                images: item.images ?? [item.image],
+                                description: item.description,
+                                sizes: item.sizes,
+                                colors: item.colors,
+                            }
+                        })}
+                    >
                         <View style={styles.imageContainer}>
                             <Image
                                 source={{ uri: item.image }}
@@ -93,17 +81,17 @@ export default function WishlistScreen() {
                             </View>
 
                             <View style={styles.priceRow}>
-                                <Typography style={styles.priceText}>${item.price}</Typography>
+                                <Typography style={styles.priceText}>₹{item.price.toLocaleString('en-IN')}</Typography>
                                 <TouchableOpacity
-                                    onPress={() => removeFromWishlist(item.id)}
+                                    onPress={() => removeItem(item.id)}
                                     style={styles.removeBtn}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
-                                    <Ionicons name="heart-dislike-outline" size={20} color="#666" />
+                                    <Ionicons name="heart" size={20} color="#ff4b4b" />
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </ScrollView>
         </SafeAreaView>
@@ -247,7 +235,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fff5f5',
         alignItems: 'center',
         justifyContent: 'center',
     }

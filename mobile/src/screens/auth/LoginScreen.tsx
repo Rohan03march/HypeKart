@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, KeyboardAvoidingView, Platform, TouchableOpacity,
-    ScrollView, StatusBar, ActivityIndicator, StyleSheet, Image
+    ScrollView, ActivityIndicator, StyleSheet, TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignIn, useOAuth } from '@clerk/clerk-expo';
@@ -10,8 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useWarmUpBrowser } from '../../hooks/useWarmUpBrowser';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TextInput } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -51,218 +50,201 @@ export default function LoginScreen() {
     }, [startOAuthFlow]);
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            <StatusBar style="dark" backgroundColor="transparent" translucent />
 
-            {/* Top 40% Editorial Hero Image */}
-            <View style={styles.heroSection}>
-                <Image
-                    source={{ uri: 'https://images.unsplash.com/photo-1542272201-b1ca555f8505?q=80&w=1200&auto=format&fit=crop' }}
-                    style={StyleSheet.absoluteFillObject}
-                    resizeMode="cover"
-                />
-                <LinearGradient
-                    colors={['rgba(0,0,0,0.8)', 'transparent', 'rgba(10,10,10,1)']}
-                    style={StyleSheet.absoluteFillObject}
-                />
-            </View>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    {/* Editorial Top Branding */}
+                    <View style={styles.headerContainer}>
+                        <Typography style={styles.logoText}>H Y P E K A R T</Typography>
+                        <Typography style={styles.greetingText}>SIGN IN TO CONTINUE</Typography>
+                    </View>
 
-            {/* Bottom 60% Solid Black Premium Sheet */}
-            <View style={styles.sheetContainer}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 28, paddingTop: 32, paddingBottom: 40 }}
-                    >
-                        {/* Header Details */}
-                        <View style={styles.headerContainer}>
-                            <Typography style={styles.brandSubtitle}>HYPEKART LOG IN</Typography>
-                            <Typography style={styles.headerText}>Enter your details.</Typography>
+                    {/* Elegant Minimalist Form */}
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                autoCapitalize="none"
+                                value={email}
+                                placeholder="Email Address"
+                                placeholderTextColor="#999999"
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                style={styles.input}
+                            />
                         </View>
 
-                        <View style={styles.formContainer}>
-                            {/* Stark Email Input */}
-                            <View style={styles.inputContainer}>
-                                <TextInput
-                                    autoCapitalize="none"
-                                    value={email}
-                                    placeholder="Email address"
-                                    placeholderTextColor="#666666"
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    style={styles.input}
-                                />
-                            </View>
-
-                            {/* Stark Password Input */}
-                            <View style={styles.inputContainer}>
-                                <TextInput
-                                    value={password}
-                                    placeholder="Password"
-                                    placeholderTextColor="#666666"
-                                    secureTextEntry
-                                    onChangeText={setPassword}
-                                    style={styles.input}
-                                />
-                            </View>
-
-                            <TouchableOpacity style={{ alignSelf: 'flex-start', marginBottom: 36 }}>
-                                <Typography style={{ color: '#ffffff', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' }}>
-                                    Forgotten your password?
-                                </Typography>
-                            </TouchableOpacity>
-
-                            {/* Aggressive Solid White Login Button */}
-                            <TouchableOpacity style={styles.primaryButton} onPress={onSignIn} activeOpacity={0.9} disabled={isLoading}>
-                                {isLoading ? (
-                                    <ActivityIndicator color="#000" />
-                                ) : (
-                                    <Typography style={styles.buttonText}>SIGN IN</Typography>
-                                )}
-                            </TouchableOpacity>
-
-                            {/* Refined Divider */}
-                            <View style={styles.dividerContainer}>
-                                <View style={styles.dividerLine} />
-                                <Typography style={styles.dividerText}>OR</Typography>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            {/* Hollow Google Button */}
-                            <TouchableOpacity onPress={onGoogle} activeOpacity={0.7} disabled={isLoading} style={styles.socialButton}>
-                                <Ionicons name="logo-google" size={18} color="#ffffff" />
-                                <Typography style={styles.socialButtonText}>Continue with Google</Typography>
-                            </TouchableOpacity>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                value={password}
+                                placeholder="Password"
+                                placeholderTextColor="#999999"
+                                secureTextEntry
+                                onChangeText={setPassword}
+                                style={styles.input}
+                            />
                         </View>
 
-                        {/* Footer Action */}
-                        <View style={styles.footer}>
-                            <TouchableOpacity onPress={() => navigation.navigate('SignUp')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.footerLink}>
-                                <Typography style={styles.footerText}>BECOME A MEMBER</Typography>
-                                <Ionicons name="arrow-forward" size={16} color="#ffffff" style={{ marginLeft: 6 }} />
-                            </TouchableOpacity>
+                        <TouchableOpacity style={styles.forgotPassword}>
+                            <Typography style={styles.forgotPasswordText}>
+                                Forgot Password?
+                            </Typography>
+                        </TouchableOpacity>
+
+                        {/* Authoritative Black Button */}
+                        <TouchableOpacity style={styles.primaryButton} onPress={onSignIn} activeOpacity={0.8} disabled={isLoading}>
+                            {isLoading ? (
+                                <ActivityIndicator color="#ffffff" />
+                            ) : (
+                                <Typography style={styles.buttonText}>SIGN IN</Typography>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Minimalist Divider */}
+                        <View style={styles.dividerContainer}>
+                            <View style={styles.dividerLine} />
+                            <Typography style={styles.dividerText}>OR</Typography>
+                            <View style={styles.dividerLine} />
                         </View>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </View>
-        </View>
+
+                        {/* Clean Google Button */}
+                        <TouchableOpacity onPress={onGoogle} activeOpacity={0.8} disabled={isLoading} style={styles.socialButton}>
+                            <Ionicons name="logo-google" size={18} color="#000000" />
+                            <Typography style={styles.socialButtonText}>Continue with Google</Typography>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Subtle Footer Action */}
+                    <View style={styles.footer}>
+                        <Typography style={{ color: '#888888', fontSize: 13, fontWeight: '500' }}>Don't have an account? </Typography>
+                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Typography style={styles.footerLinkText}>Create Account</Typography>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0a0a0a',
+        backgroundColor: '#FFFFFF', // Pure, clinical white
     },
-    heroSection: {
-        height: '40%',
-        width: '100%',
-        position: 'absolute',
-        top: 0,
-    },
-    sheetContainer: {
-        flex: 1,
-        marginTop: '65%',
-        backgroundColor: '#0a0a0a',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 28, // More breathing room
+        paddingBottom: 40,
     },
     headerContainer: {
-        marginBottom: 32,
+        alignItems: 'center',
+        marginBottom: 56,
+        marginTop: 60,
     },
-    brandSubtitle: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: 3,
-        marginBottom: 6,
+    logoText: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: '#000000',
+        marginBottom: 12,
+        letterSpacing: 4, // Luxury high tracking
     },
-    headerText: {
-        fontSize: 32,
-        fontWeight: '300',
-        color: '#ffffff',
-        letterSpacing: -1,
+    greetingText: {
+        fontSize: 12,
+        color: '#888888',
+        fontWeight: '600',
+        letterSpacing: 1,
     },
     formContainer: {
-        flex: 1,
+        width: '100%',
     },
     inputContainer: {
-        height: 60,
-        marginBottom: 16,
+        height: 52,
+        marginBottom: 20,
         borderBottomWidth: 1,
-        borderColor: '#333333',
-        backgroundColor: 'transparent',
+        borderColor: '#EAEAEA', // Clean underline
+        justifyContent: 'flex-end',
+        paddingBottom: 8,
     },
     input: {
-        flex: 1,
-        height: '100%',
-        color: '#ffffff',
-        fontSize: 16,
-        paddingHorizontal: 0,
+        color: '#000000',
+        fontSize: 15,
+        fontWeight: '500',
+        letterSpacing: 0.5,
+    },
+    forgotPassword: {
+        alignSelf: 'flex-end',
+        marginBottom: 32,
+        marginTop: -4,
+    },
+    forgotPasswordText: {
+        color: '#666666',
+        fontSize: 12,
+        fontWeight: '600',
     },
     primaryButton: {
         width: '100%',
         height: 56,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#000000', // Stark authoritative black
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
-        borderRadius: 2,
+        borderRadius: 4, // Just a tiny rounding, feels sharp
+        marginBottom: 28,
     },
     buttonText: {
         fontSize: 14,
-        fontWeight: '800',
-        color: '#000000',
+        fontWeight: '700',
+        color: '#ffffff',
         letterSpacing: 2,
     },
     dividerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 28,
     },
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#222222',
+        backgroundColor: '#F0F0F0',
     },
     dividerText: {
         fontSize: 11,
-        color: '#666666',
+        color: '#AAAAAA',
         paddingHorizontal: 16,
-        letterSpacing: 1,
+        fontWeight: '600',
     },
     socialButton: {
         flexDirection: 'row',
-        height: 56,
+        height: 54,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'transparent',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#333333',
+        borderColor: '#EAEAEA',
+        borderRadius: 4,
         gap: 12,
-        borderRadius: 2,
     },
     socialButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#ffffff',
+        color: '#000000',
     },
     footer: {
-        marginTop: 40,
-        alignItems: 'flex-start',
-    },
-    footerLink: {
         flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
-        borderBottomWidth: 1,
-        borderColor: '#ffffff',
-        paddingBottom: 4,
+        marginTop: 40,
     },
-    footerText: {
-        fontSize: 12,
+    footerLinkText: {
+        fontSize: 13,
         fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: 2,
+        color: '#000000',
+        textDecorationLine: 'underline', // Classic editorial link style
     }
 });

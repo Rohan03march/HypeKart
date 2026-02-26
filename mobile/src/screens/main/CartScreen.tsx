@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-const FREE_SHIPPING_THRESHOLD = 150;
+const FREE_SHIPPING_THRESHOLD = 1500;
 
 export default function CartScreen() {
     const { items, removeItem, updateQuantity, getCartTotal, getCartCount } = useCartStore();
@@ -16,8 +16,8 @@ export default function CartScreen() {
 
     const total = getCartTotal();
     const itemCount = getCartCount();
-    const tax = total * 0.08;
-    const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : 15;
+    const tax = total * 0.18; // 18% GST
+    const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
     const finalTotal = total + tax + shipping;
     const shippingProgress = Math.min(total / FREE_SHIPPING_THRESHOLD, 1);
 
@@ -65,7 +65,7 @@ export default function CartScreen() {
                         {total < FREE_SHIPPING_THRESHOLD ? (
                             <>
                                 <Typography style={styles.shippingText}>
-                                    You're <Typography style={{ fontWeight: '700' }}>${(FREE_SHIPPING_THRESHOLD - total).toFixed(2)}</Typography> away from free shipping.
+                                    You're <Typography style={{ fontWeight: '700' }}>₹{(FREE_SHIPPING_THRESHOLD - total).toLocaleString('en-IN')}</Typography> away from free shipping.
                                 </Typography>
                                 <View style={styles.progressBarBg}>
                                     <View style={[styles.progressBarFill, { width: `${shippingProgress * 100}%` }]} />
@@ -106,7 +106,7 @@ export default function CartScreen() {
                                 </View>
 
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 16 }}>
-                                    <Typography style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Typography>
+                                    <Typography style={styles.itemPrice}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Typography>
 
                                     <View style={styles.quantityControl}>
                                         <TouchableOpacity
@@ -135,16 +135,16 @@ export default function CartScreen() {
 
                     <View style={styles.summaryRow}>
                         <Typography style={styles.summaryLabel}>Subtotal</Typography>
-                        <Typography style={styles.summaryValue}>${total.toFixed(2)}</Typography>
+                        <Typography style={styles.summaryValue}>₹{total.toLocaleString('en-IN')}</Typography>
                     </View>
                     <View style={styles.summaryRow}>
                         <Typography style={styles.summaryLabel}>Estimated Tax</Typography>
-                        <Typography style={styles.summaryValue}>${tax.toFixed(2)}</Typography>
+                        <Typography style={styles.summaryValue}>₹{tax.toLocaleString('en-IN')}</Typography>
                     </View>
                     <View style={styles.summaryRow}>
                         <Typography style={styles.summaryLabel}>Shipping</Typography>
                         <Typography style={styles.summaryValue}>
-                            {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                            {shipping === 0 ? 'Free' : `₹${shipping.toLocaleString('en-IN')}`}
                         </Typography>
                     </View>
 
@@ -152,7 +152,7 @@ export default function CartScreen() {
 
                     <View style={styles.totalRow}>
                         <Typography style={styles.totalLabel}>Total</Typography>
-                        <Typography style={styles.totalValue}>${finalTotal.toFixed(2)}</Typography>
+                        <Typography style={styles.totalValue}>₹{Math.round(finalTotal).toLocaleString('en-IN')}</Typography>
                     </View>
                 </View>
             </ScrollView>
@@ -172,7 +172,7 @@ export default function CartScreen() {
                         end={{ x: 1, y: 1 }}
                     >
                         <Typography style={{ color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 }}>
-                            Checkout  •  ${finalTotal.toFixed(2)}
+                            Checkout  •  ₹{Math.round(finalTotal).toLocaleString('en-IN')}
                         </Typography>
                     </LinearGradient>
                 </TouchableOpacity>

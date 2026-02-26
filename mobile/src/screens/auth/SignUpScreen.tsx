@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import {
     View, KeyboardAvoidingView, Platform, TouchableOpacity,
-    ScrollView, StatusBar, ActivityIndicator, StyleSheet, Image
+    ScrollView, ActivityIndicator, StyleSheet, TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignUp } from '@clerk/clerk-expo';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TextInput } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 export default function SignUpScreen() {
     const { isLoaded, signUp, setActive } = useSignUp();
@@ -29,7 +27,7 @@ export default function SignUpScreen() {
             await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
             setPending(true);
         } catch (err: any) {
-            alert(err?.errors?.[0]?.message || 'Failed to sign up');
+            alert(err?.errors?.[0]?.message || 'Failed to request access');
         } finally {
             setIsLoading(false);
         }
@@ -43,241 +41,214 @@ export default function SignUpScreen() {
             if (result.status === 'complete') {
                 await setActive({ session: result.createdSessionId });
             } else {
-                alert('Verification failed. Please try again.');
+                alert('Verification failed. Retrying required.');
             }
         } catch (err: any) {
-            alert(err?.errors?.[0]?.message || 'Failed to verify');
+            alert(err?.errors?.[0]?.message || 'Verification sequence failed');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            <StatusBar style="dark" backgroundColor="transparent" translucent />
 
-            {/* Top 40% Editorial Hero Image */}
-            <View style={styles.heroSection}>
-                <Image
-                    source={{ uri: 'https://images.unsplash.com/photo-1542272201-b1ca555f8505?q=80&w=1200&auto=format&fit=crop' }}
-                    style={StyleSheet.absoluteFillObject}
-                    resizeMode="cover"
-                />
-                <LinearGradient
-                    colors={['rgba(0,0,0,0.8)', 'transparent', 'rgba(10,10,10,1)']}
-                    style={StyleSheet.absoluteFillObject}
-                />
-            </View>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.scrollContent}
+                >
+                    {!pending ? (
+                        <>
+                            {/* Editorial Top Branding */}
+                            <View style={styles.headerContainer}>
+                                <Typography style={styles.logoText}>H Y P E K A R T</Typography>
+                                <Typography style={styles.greetingText}>CREATE AN ACCOUNT</Typography>
+                            </View>
 
-            {/* Bottom 60% Solid Black Premium Sheet */}
-            <View style={styles.sheetContainer}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 28, paddingTop: 32, paddingBottom: 40 }}
-                    >
-                        {!pending ? (
-                            <>
-                                <View style={styles.headerContainer}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 16 }}>
-                                            <Ionicons name="arrow-back" size={20} color="#ffffff" />
-                                        </TouchableOpacity>
-                                        <Typography style={styles.brandSubtitle}>JOIN HYPEKART</Typography>
-                                    </View>
-                                    <Typography style={styles.headerText}>Create account.</Typography>
+                            {/* Elegant Minimalist Form */}
+                            <View style={styles.formContainer}>
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        autoCapitalize="none"
+                                        value={email}
+                                        placeholder="Email Address"
+                                        placeholderTextColor="#999999"
+                                        onChangeText={setEmail}
+                                        keyboardType="email-address"
+                                        style={styles.input}
+                                    />
                                 </View>
 
-                                <View style={styles.formContainer}>
-                                    <View style={styles.inputContainer}>
-                                        <TextInput
-                                            autoCapitalize="none"
-                                            value={email}
-                                            placeholder="Email address"
-                                            placeholderTextColor="#666666"
-                                            onChangeText={setEmail}
-                                            keyboardType="email-address"
-                                            style={styles.input}
-                                        />
-                                    </View>
-
-                                    <View style={styles.inputContainer}>
-                                        <TextInput
-                                            value={password}
-                                            placeholder="Create Password"
-                                            placeholderTextColor="#666666"
-                                            secureTextEntry
-                                            onChangeText={setPassword}
-                                            style={styles.input}
-                                        />
-                                    </View>
-
-                                    <Typography style={styles.termsText}>
-                                        By signing up, you agree to our Terms of Service and Privacy Policy.
-                                    </Typography>
-
-                                    <TouchableOpacity style={styles.primaryButton} onPress={onSignUp} activeOpacity={0.9} disabled={isLoading}>
-                                        {isLoading ? (
-                                            <ActivityIndicator color="#000" />
-                                        ) : (
-                                            <Typography style={styles.buttonText}>CONTINUE</Typography>
-                                        )}
-                                    </TouchableOpacity>
+                                <View style={styles.inputContainer}>
+                                    <TextInput
+                                        value={password}
+                                        placeholder="Password"
+                                        placeholderTextColor="#999999"
+                                        secureTextEntry
+                                        onChangeText={setPassword}
+                                        style={styles.input}
+                                    />
                                 </View>
 
-                                <View style={styles.footer}>
-                                    <TouchableOpacity onPress={() => navigation.navigate('Login')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.footerLink}>
-                                        <Typography style={styles.footerText}>ALREADY A MEMBER? SIGN IN</Typography>
-                                        <Ionicons name="arrow-forward" size={16} color="#ffffff" style={{ marginLeft: 6 }} />
-                                    </TouchableOpacity>
+                                <Typography style={styles.termsText}>
+                                    By proceeding, you agree to the Terms of Service.
+                                </Typography>
+
+                                {/* Authoritative Black Button */}
+                                <TouchableOpacity style={styles.primaryButton} onPress={onSignUp} activeOpacity={0.8} disabled={isLoading}>
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#ffffff" />
+                                    ) : (
+                                        <Typography style={styles.buttonText}>CONTINUE</Typography>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.footer}>
+                                <Typography style={{ color: '#888888', fontSize: 13, fontWeight: '500' }}>Already have an account? </Typography>
+                                <TouchableOpacity onPress={() => navigation.navigate('Login')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                    <Typography style={styles.footerLinkText}>Sign In</Typography>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <>
+                            {/* OTP Verification UI - Editorial Style */}
+                            <View style={[styles.headerContainer, { marginTop: 40 }]}>
+                                <Typography style={styles.logoText}>V E R I F Y</Typography>
+                            </View>
+
+                            <View style={styles.formContainer}>
+                                <Typography style={styles.verificationDesc}>
+                                    ENTER THE CODE SENT TO:{'\n'}
+                                    <Typography style={{ color: '#000000', fontWeight: '700', letterSpacing: 1 }}>{email}</Typography>
+                                </Typography>
+
+                                <View style={[styles.inputContainer, { borderBottomWidth: 2, borderColor: '#000000', height: 72 }]}>
+                                    <TextInput
+                                        value={code}
+                                        placeholder="000 000"
+                                        placeholderTextColor="#EAEAEA"
+                                        onChangeText={setCode}
+                                        keyboardType="number-pad"
+                                        style={[styles.input, { textAlign: 'center', fontSize: 28, letterSpacing: 16, fontWeight: '600', color: '#000000' }]}
+                                        autoFocus
+                                        maxLength={6}
+                                    />
                                 </View>
-                            </>
-                        ) : (
-                            <>
-                                <View style={styles.headerContainer}>
-                                    <Typography style={styles.brandSubtitle}>VERIFICATION</Typography>
-                                    <Typography style={styles.headerText}>Check your email.</Typography>
-                                </View>
 
-                                <View style={styles.formContainer}>
-                                    <View style={styles.verifyBox}>
-                                        <Ionicons name="mail-open-outline" size={32} color="#ffffff" style={{ marginBottom: 12 }} />
-                                        <Typography style={{ color: '#aaaaaa', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
-                                            We sent a verification code to:{'\n'}
-                                            <Typography style={{ color: '#ffffff', fontWeight: '800' }}>{email}</Typography>
-                                        </Typography>
-                                    </View>
+                                <TouchableOpacity style={[styles.primaryButton, { marginTop: 48 }]} onPress={onVerify} activeOpacity={0.8} disabled={isLoading}>
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#ffffff" />
+                                    ) : (
+                                        <Typography style={styles.buttonText}>VERIFY ACCOUNT</Typography>
+                                    )}
+                                </TouchableOpacity>
 
-                                    <View style={styles.inputContainer}>
-                                        <TextInput
-                                            value={code}
-                                            placeholder="000 000"
-                                            placeholderTextColor="#333333"
-                                            onChangeText={setCode}
-                                            keyboardType="number-pad"
-                                            style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 8, paddingHorizontal: 0, fontWeight: '800' }]}
-                                            autoFocus
-                                            maxLength={6}
-                                        />
-                                    </View>
-
-                                    <TouchableOpacity style={[styles.primaryButton, { marginTop: 24 }]} onPress={onVerify} activeOpacity={0.9} disabled={isLoading}>
-                                        {isLoading ? (
-                                            <ActivityIndicator color="#000" />
-                                        ) : (
-                                            <Typography style={styles.buttonText}>VERIFY ACCOUNT</Typography>
-                                        )}
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity onPress={() => setPending(false)} style={{ alignItems: 'center', marginTop: 32 }}>
-                                        <Typography style={{ fontSize: 12, color: '#666666', fontWeight: '800', letterSpacing: 1 }}>← CHANGE EMAIL ADDRESS</Typography>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        )}
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </View>
-        </View>
+                                <TouchableOpacity onPress={() => setPending(false)} style={{ alignItems: 'center', marginTop: 32 }}>
+                                    <Typography style={{ fontSize: 12, color: '#888888', fontWeight: '600', textDecorationLine: 'underline' }}>USE A DIFFERENT EMAIL</Typography>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    )}
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0a0a0a',
+        backgroundColor: '#FFFFFF', // Pure white
     },
-    heroSection: {
-        height: '40%',
-        width: '100%',
-        position: 'absolute',
-        top: 0,
-    },
-    sheetContainer: {
-        flex: 1,
-        marginTop: '65%',
-        backgroundColor: '#0a0a0a',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 28,
+        paddingBottom: 40,
     },
     headerContainer: {
-        marginBottom: 32,
+        alignItems: 'center',
+        marginBottom: 56,
+        marginTop: 60,
     },
-    brandSubtitle: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: 3,
+    logoText: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: '#000000',
+        marginBottom: 12,
+        letterSpacing: 4,
     },
-    headerText: {
-        fontSize: 32,
-        fontWeight: '300',
-        color: '#ffffff',
-        letterSpacing: -1,
+    greetingText: {
+        fontSize: 12,
+        color: '#888888',
+        fontWeight: '600',
+        letterSpacing: 1,
     },
     formContainer: {
-        flex: 1,
+        width: '100%',
     },
     inputContainer: {
-        height: 60,
-        marginBottom: 16,
+        height: 52,
+        marginBottom: 20,
         borderBottomWidth: 1,
-        borderColor: '#333333',
-        backgroundColor: 'transparent',
+        borderColor: '#EAEAEA',
+        justifyContent: 'flex-end',
+        paddingBottom: 8,
     },
     input: {
-        flex: 1,
-        height: '100%',
-        color: '#ffffff',
-        fontSize: 16,
-        paddingHorizontal: 0,
+        color: '#000000',
+        fontSize: 15,
+        fontWeight: '500',
+        letterSpacing: 0.5,
     },
     termsText: {
         fontSize: 11,
-        color: '#666666',
-        lineHeight: 18,
+        color: '#888888',
+        lineHeight: 16,
         marginBottom: 32,
         marginTop: 8,
+        textAlign: 'center',
+        fontWeight: '500',
     },
     primaryButton: {
         width: '100%',
         height: 56,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#000000', // Stark black
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 2,
+        borderRadius: 4,
+        marginBottom: 8,
     },
     buttonText: {
         fontSize: 14,
-        fontWeight: '800',
-        color: '#000000',
-        letterSpacing: 2,
-    },
-    footer: {
-        marginTop: 40,
-        alignItems: 'flex-start',
-    },
-    footerLink: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderColor: '#ffffff',
-        paddingBottom: 4,
-    },
-    footerText: {
-        fontSize: 12,
-        fontWeight: '800',
+        fontWeight: '700',
         color: '#ffffff',
         letterSpacing: 2,
     },
-    verifyBox: {
-        padding: 24,
-        borderRadius: 2,
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 32,
+    },
+    footerLinkText: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#000000',
+        textDecorationLine: 'underline',
+    },
+    verificationDesc: {
+        color: '#888888',
+        fontSize: 12,
+        textAlign: 'center',
+        lineHeight: 22,
         marginBottom: 32,
-        backgroundColor: '#111111',
-        borderWidth: 1,
-        borderColor: '#333333',
+        letterSpacing: 1,
+        fontWeight: '600'
     }
 });
