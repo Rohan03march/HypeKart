@@ -1,25 +1,25 @@
-import { supabase } from './supabase';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 /**
- * Fetches all orders for a given Clerk user ID.
- * Queries the orders table directly by clerk_user_id column.
- * Requires the DB migration (fix_orders_clerk_id.sql) to have been run.
+ * Fetches all orders for a given Clerk user ID via the backend API.
+ * Uses supabaseAdmin on the server side, which bypasses Supabase RLS.
+ * This is required because the anon key cannot read the orders table.
  */
 export async function getUserOrders(clerkUserId: string): Promise<any[]> {
     try {
-        const { data, error } = await supabase
-            .from('orders')
-            .select('id, total_amount, status, created_at, order_items, shipping_address, payment_id')
-            .eq('clerk_user_id', clerkUserId)
-            .order('created_at', { ascending: false });
+        const res = await fetch(`${API_URL}/user/orders?clerk_user_id=${encodeURIComponent(clerkUserId)}`);
 
-        if (error) {
-            console.error('[getUserOrders] error:', error.message);
+        // Guard against HTML error pages (non-JSON responses)
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            console.error('[getUserOrders] Non-JSON response from API');
             return [];
         }
-        return data || [];
+
+        const data = await res.json();
+        return data.orders || [];
     } catch (e) {
-        console.error('[getUserOrders] unexpected error:', e);
+        console.error('[getUserOrders] error:', e);
         return [];
     }
 }
