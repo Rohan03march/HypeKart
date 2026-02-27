@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useUser } from '@clerk/clerk-expo';
@@ -29,13 +29,18 @@ export default function HomeScreen() {
     const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
     const [newArrivals, setNewArrivals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
         fetchProducts();
     }, []);
 
-    const fetchProducts = async () => {
-        setIsLoading(true);
+    const fetchProducts = async (isRefresh = false) => {
+        if (isRefresh) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
         try {
             // Fetch Trending (just taking the earliest products for now as "trending")
             const { data: trendingData, error: trendingError } = await supabase
@@ -63,6 +68,7 @@ export default function HomeScreen() {
             console.error("Error fetching products:", error);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -83,7 +89,18 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={() => fetchProducts(true)}
+                            tintColor="#000"
+                            colors={['#000']}
+                        />
+                    }
+                >
 
                     {/* Hero Banner */}
                     <View style={styles.heroContainer}>

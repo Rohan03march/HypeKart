@@ -22,6 +22,8 @@ import CartScreen from '../screens/main/CartScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import WishlistScreen from '../screens/main/WishlistScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
+import CheckoutScreen from '../screens/main/CheckoutScreen';
+import OrderSuccessScreen from '../screens/main/OrderSuccessScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -146,6 +148,12 @@ export default function RootNavigator() {
                         name="ProductDetails"
                         component={ProductDetailsScreen}
                         options={{ presentation: 'modal' }}
+                    />
+                    <Stack.Screen name="Checkout" component={CheckoutScreen} />
+                    <Stack.Screen
+                        name="OrderSuccess"
+                        component={OrderSuccessScreen}
+                        options={{ gestureEnabled: false }}
                     />
                 </Stack.Group>
             ) : (

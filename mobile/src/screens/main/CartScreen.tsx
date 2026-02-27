@@ -161,7 +161,7 @@ export default function CartScreen() {
             <View style={styles.checkoutFooter}>
                 <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
                 <TouchableOpacity
-                    onPress={() => alert('Checkout Flow Pending!')}
+                    onPress={() => navigation.navigate('Checkout')}
                     style={styles.checkoutButton}
                     activeOpacity={0.9}
                 >
