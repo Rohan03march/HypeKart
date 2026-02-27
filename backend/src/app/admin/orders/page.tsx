@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { FileText } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -97,9 +98,10 @@ export default async function AdminOrdersPage() {
                                             <td className="px-8 py-5 text-right">
                                                 <Link
                                                     href={`/admin/orders/${order.id}`}
-                                                    className="inline-flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all duration-200"
+                                                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-all duration-200"
+                                                    title="Edit / View Order"
                                                 >
-                                                    View Details
+                                                    <Pencil className="h-3.5 w-3.5" />
                                                 </Link>
                                             </td>
                                         </tr>

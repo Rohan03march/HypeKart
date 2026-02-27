@@ -74,7 +74,6 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                             <div className="divide-y divide-white/5">
                                 {items.map((item: any, i: number) => (
                                     <div key={i} className="flex items-center gap-4 px-6 py-4">
-                                        {/* Product image */}
                                         {item.image ? (
                                             <img
                                                 src={item.image}
