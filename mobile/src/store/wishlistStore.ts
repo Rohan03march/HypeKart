@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface WishlistItem {
     id: string;
@@ -21,30 +23,38 @@ interface WishlistState {
     toggle: (item: WishlistItem) => void;
 }
 
-export const useWishlistStore = create<WishlistState>((set, get) => ({
-    items: [],
+export const useWishlistStore = create<WishlistState>()(
+    persist(
+        (set, get) => ({
+            items: [],
 
-    addItem: (item) => {
-        set((state) => {
-            if (state.items.find(i => i.id === item.id)) return state;
-            return { items: [...state.items, item] };
-        });
-    },
+            addItem: (item) => {
+                set((state) => {
+                    if (state.items.find(i => i.id === item.id)) return state;
+                    return { items: [...state.items, item] };
+                });
+            },
 
-    removeItem: (id) => {
-        set((state) => ({ items: state.items.filter(i => i.id !== id) }));
-    },
+            removeItem: (id) => {
+                set((state) => ({ items: state.items.filter(i => i.id !== id) }));
+            },
 
-    isWishlisted: (id) => {
-        return !!get().items.find(i => i.id === id);
-    },
+            isWishlisted: (id) => {
+                return !!get().items.find(i => i.id === id);
+            },
 
-    toggle: (item) => {
-        const exists = get().isWishlisted(item.id);
-        if (exists) {
-            get().removeItem(item.id);
-        } else {
-            get().addItem(item);
+            toggle: (item) => {
+                const exists = get().isWishlisted(item.id);
+                if (exists) {
+                    get().removeItem(item.id);
+                } else {
+                    get().addItem(item);
+                }
+            },
+        }),
+        {
+            name: 'hypekart-wishlist',
+            storage: createJSONStorage(() => AsyncStorage),
         }
-    },
-}));
+    )
+);

@@ -16,21 +16,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Look up user by clerk_id
-        let userId: string | null = null;
-        if (user_clerk_id) {
-            const { data: userData } = await supabaseAdmin
-                .from('users')
-                .select('id')
-                .eq('clerk_id', user_clerk_id)
-                .single();
-            userId = userData?.id ?? null;
-        }
-
+        // Store clerk_user_id directly — no fragile users table join needed.
         const { data, error } = await supabaseAdmin
             .from('orders')
             .insert({
-                user_id: userId,
+                clerk_user_id: user_clerk_id || null,
                 payment_id: razorpay_payment_id,
                 total_amount: amount,
                 order_items: items,

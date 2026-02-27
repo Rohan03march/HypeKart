@@ -24,6 +24,10 @@ import WishlistScreen from '../screens/main/WishlistScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 import CheckoutScreen from '../screens/main/CheckoutScreen';
 import OrderSuccessScreen from '../screens/main/OrderSuccessScreen';
+import OrderHistoryScreen from '../screens/main/OrderHistoryScreen';
+import ShippingAddressScreen from '../screens/main/ShippingAddressScreen';
+import PersonalDetailsScreen from '../screens/main/PersonalDetailsScreen';
+import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -155,6 +159,10 @@ export default function RootNavigator() {
                         component={OrderSuccessScreen}
                         options={{ gestureEnabled: false }}
                     />
+                    <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+                    <Stack.Screen name="ShippingAddress" component={ShippingAddressScreen} />
+                    <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
+                    <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
                 </Stack.Group>
             ) : (
                 <Stack.Group>

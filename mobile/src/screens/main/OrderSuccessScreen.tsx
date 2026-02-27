@@ -22,7 +22,7 @@ export default function OrderSuccessScreen() {
 
                 <Typography style={styles.title}>Order Placed!</Typography>
                 <Typography style={styles.subtitle}>
-                    Your order has been confirmed and is being processed.
+                    Your order has been confirmed and is being placed.
                 </Typography>
 
                 {/* Order Info */}
@@ -46,7 +46,7 @@ export default function OrderSuccessScreen() {
                 {/* CTA */}
                 <TouchableOpacity
                     style={styles.ctaBtn}
-                    onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+                    onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] })}
                     activeOpacity={0.9}
                 >
                     <LinearGradient colors={['#000', '#1a1a1a']} style={styles.ctaGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
