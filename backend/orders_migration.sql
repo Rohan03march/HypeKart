@@ -23,7 +23,7 @@ ALTER TABLE public.orders
 
 ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_check
-    CHECK (status IN ('Placed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'));
+    CHECK (status IN ('Placed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled', 'Return Requested'));
 
 -- 6. Update any existing 'Pending' rows to 'Placed'
 UPDATE public.orders SET status = 'Placed' WHERE status = 'Pending';

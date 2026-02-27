@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package, MapPin, CreditCard } from "lucide-react";
+import { ArrowLeft, Package, MapPin, CreditCard, User } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
 import StatusChanger from "./StatusChanger";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ const statusColorMap: Record<string, string> = {
     'Out for Delivery': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     Delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
     Cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+    'Return Requested': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
 };
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +26,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .single();
 
     if (error || !order) notFound();
+
+    // Fetch customer email from Clerk if clerk_user_id is stored
+    let customerEmail: string | null = null;
+    let customerName: string | null = null;
+    if (order.clerk_user_id) {
+        try {
+            const client = await clerkClient();
+            const clerkUser = await client.users.getUser(order.clerk_user_id);
+            customerEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+            customerName = clerkUser.fullName || clerkUser.username || null;
+        } catch {
+            // Clerk user not found — non-critical
+        }
+    }
 
     const addr = (order.shipping_address as any) ?? {};
     const items: any[] = (order.order_items as any[]) ?? [];
@@ -181,9 +197,27 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
 
-                    {/* Order Meta */}
+                    {/* Customer Info */}
                     <div className="rounded-2xl border border-white/10 bg-[#111111]/80 backdrop-blur-xl overflow-hidden">
+                        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <h2 className="text-sm font-semibold text-white">Customer</h2>
+                        </div>
                         <div className="px-6 py-5 space-y-3">
+                            {customerName && (
+                                <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Name</p>
+                                    <p className="text-sm font-medium text-gray-200">{customerName}</p>
+                                </div>
+                            )}
+                            {customerEmail ? (
+                                <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</p>
+                                    <p className="text-sm font-mono text-gray-200 break-all">{customerEmail}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-600">No account linked.</p>
+                            )}
                             <div>
                                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Order ID</p>
                                 <p className="text-xs font-mono text-gray-400 break-all">{order.id}</p>

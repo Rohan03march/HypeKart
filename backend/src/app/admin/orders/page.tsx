@@ -70,6 +70,7 @@ export default async function AdminOrdersPage() {
                                         'Out for Delivery': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
                                         Delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
                                         Cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+                                        'Return Requested': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
                                     };
                                     const statusColors = statusColorMap[order.status] ?? 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 

@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     'Out for Delivery': { bg: '#faf5ff', text: '#a855f7' },
     Delivered: { bg: '#f0fdf4', text: '#22c55e' },
     Cancelled: { bg: '#fef2f2', text: '#ef4444' },
+    'Return Requested': { bg: '#fefce8', text: '#ca8a04' },
 };
 
 export default function OrderHistoryScreen() {
@@ -101,13 +102,28 @@ export default function OrderHistoryScreen() {
 
     const handleReturn = (orderId: string) => {
         Alert.alert(
-            'Return Request',
-            'Your return request will be submitted. Our team will contact you within 24 hours.',
+            'Request Return',
+            'Submit a return request for this order? Our team will contact you within 24 hours.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Submit Return',
-                    onPress: () => Alert.alert('Return Submitted ✓', 'We\'ve received your return request. You\'ll get a confirmation email shortly.'),
+                    onPress: async () => {
+                        try {
+                            const res = await fetch(`${API_URL}/admin/update-order-status`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orderId, status: 'Return Requested' }),
+                            });
+                            if (!res.ok) throw new Error('Failed');
+                            setOrders(prev =>
+                                prev.map(o => o.id === orderId ? { ...o, status: 'Return Requested' } : o)
+                            );
+                            Alert.alert('Return Submitted ✓', 'We\'ve received your return request. You\'ll be contacted shortly.');
+                        } catch {
+                            Alert.alert('Error', 'Could not submit return. Please try again.');
+                        }
+                    },
                 },
             ]
         );
