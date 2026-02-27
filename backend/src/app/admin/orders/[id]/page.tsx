@@ -15,11 +15,12 @@ const statusColorMap: Record<string, string> = {
     Cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
-export default async function OrderDetailPage({ params }: { params: { id: string } }) {
+export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const { data: order, error } = await supabaseAdmin
         .from('orders')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
     if (error || !order) notFound();
