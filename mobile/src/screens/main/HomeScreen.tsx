@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
 import { useWishlistStore } from '../../store/wishlistStore';
+import * as Location from 'expo-location';
+import { useAddressStore } from '../../store/addressStore';
 
 const { width } = Dimensions.get('window');
 
@@ -31,9 +33,58 @@ export default function HomeScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    const { addresses, selectedAddressId, addAddress } = useAddressStore();
+    const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
+
     useEffect(() => {
         fetchProducts();
+        checkLocation();
     }, []);
+
+    const checkLocation = async () => {
+        if (addresses.length > 0) return; // Only fetch if no addresses exist
+
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.log('Permission to access location was denied');
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.BestForNavigation,
+            });
+            let reverseGeocode = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+
+            if (reverseGeocode.length > 0) {
+                const addr = reverseGeocode[0];
+                const addressParts = [
+                    addr.name,
+                    addr.streetNumber,
+                    addr.street,
+                    addr.district,
+                    addr.subregion,
+                ].filter(Boolean);
+
+                const newAddress = {
+                    id: Date.now().toString(),
+                    full_name: user?.fullName || 'My Name',
+                    phone: '',
+                    address: addressParts.join(', '),
+                    city: addr.city || addr.subregion || addr.region || '',
+                    state: addr.region || '',
+                    pincode: addr.postalCode || '',
+                    is_current_location: true
+                };
+                addAddress(newAddress);
+            }
+        } catch (error) {
+            console.error("Error getting location:", error);
+        }
+    };
 
     const fetchProducts = async (isRefresh = false) => {
         if (isRefresh) {
@@ -83,7 +134,20 @@ export default function HomeScreen() {
             <SafeAreaView style={{ flex: 1 }}>
 
                 <View style={styles.header}>
-                    <Typography style={styles.logoText}>HYPEKART</Typography>
+                    <View>
+                        <Typography style={styles.logoText}>HYPEKART</Typography>
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+                            onPress={() => navigation.navigate('ShippingAddress')}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="location" size={12} color="#666" />
+                            <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500' }}>
+                                {selectedAddress ? `${selectedAddress.city}, ${selectedAddress.pincode}` : 'Select Delivery Address'}
+                            </Typography>
+                            <Ionicons name="chevron-down" size={12} color="#666" style={{ marginLeft: 2 }} />
+                        </TouchableOpacity>
+                    </View>
                     <TouchableOpacity onPress={() => { }} style={styles.iconBtn}>
                         <Ionicons name="search-outline" size={20} color="#000" />
                     </TouchableOpacity>

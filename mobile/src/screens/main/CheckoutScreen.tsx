@@ -12,16 +12,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCartStore } from '../../store/cartStore';
 import { useUser } from '@clerk/clerk-expo';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+import { useAddressStore } from '../../store/addressStore';
 
-interface AddressForm {
-    full_name: string;
-    phone: string;
-    address: string;
-    city: string;
-    state: string;
-    pincode: string;
-}
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 const RAZORPAY_CHECKOUT_HTML = (keyId: string, orderId: string, amount: number, name: string, email: string, phone: string) => `
 <!DOCTYPE html>
@@ -80,26 +73,13 @@ export default function CheckoutScreen() {
     const shipping = subtotal >= 1500 ? 0 : 99;
     const finalTotal = Math.round(subtotal + tax + shipping);
 
-    const [form, setForm] = useState<AddressForm>({
-        full_name: (user?.unsafeMetadata?.name as string) || user?.fullName || '',
-        phone: user?.primaryPhoneNumber?.phoneNumber || '',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-    });
-
-    const updateField = (field: keyof AddressForm, value: string) => {
-        setForm(prev => ({ ...prev, [field]: value }));
-    };
+    const { addresses, selectedAddressId } = useAddressStore();
+    const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
 
     const validateAddress = () => {
-        if (!form.full_name.trim()) return 'Full Name is required';
-        if (!form.phone.trim() || form.phone.length < 10) return 'Valid phone number is required';
-        if (!form.address.trim()) return 'Address is required';
-        if (!form.city.trim()) return 'City is required';
-        if (!form.state.trim()) return 'State is required';
-        if (!form.pincode.trim() || form.pincode.length < 6) return 'Valid 6-digit pincode is required';
+        if (!selectedAddress) return 'Please select a delivery address';
+        if (!selectedAddress.full_name) return 'Full Name is required on the selected address';
+        if (!selectedAddress.phone) return 'Phone number is required on the selected address';
         return null;
     };
 
@@ -126,9 +106,9 @@ export default function CheckoutScreen() {
                 data.keyId,
                 data.orderId,
                 data.amount,
-                form.full_name,
+                selectedAddress.full_name,
                 user?.primaryEmailAddress?.emailAddress || '',
-                form.phone,
+                selectedAddress.phone,
             ));
             setStep('payment');
         } catch (e: any) {
@@ -162,7 +142,7 @@ export default function CheckoutScreen() {
                         razorpay_order_id: msg.order_id,
                         amount: finalTotal,
                         items: orderItems,
-                        shipping_address: form,
+                        shipping_address: selectedAddress,
                         user_clerk_id: user?.id,
                     }),
                 });
@@ -224,14 +204,32 @@ export default function CheckoutScreen() {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
                     {/* Delivery Address */}
-                    <Typography style={styles.sectionTitle}>Delivery Address</Typography>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography style={styles.sectionTitle}>Delivery Address</Typography>
+                        <TouchableOpacity onPress={() => navigation.navigate('ShippingAddress')}>
+                            <Typography style={{ fontSize: 13, color: '#000', fontWeight: '600' }}>Change</Typography>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.card}>
-                        <InputField label="Full Name" value={form.full_name} onChangeText={v => updateField('full_name', v)} placeholder="John Doe" />
-                        <InputField label="Phone Number" value={form.phone} onChangeText={v => updateField('phone', v)} placeholder="9876543210" keyboardType="phone-pad" maxLength={10} />
-                        <InputField label="Address" value={form.address} onChangeText={v => updateField('address', v)} placeholder="Flat, Street, Area" multiline />
-                        <InputField label="City" value={form.city} onChangeText={v => updateField('city', v)} placeholder="Mumbai" />
-                        <InputField label="State" value={form.state} onChangeText={v => updateField('state', v)} placeholder="Maharashtra" />
-                        <InputField label="Pincode" value={form.pincode} onChangeText={v => updateField('pincode', v)} placeholder="400001" keyboardType="number-pad" maxLength={6} last />
+                        {selectedAddress ? (
+                            <View style={{ padding: 20 }}>
+                                <Typography style={{ fontSize: 15, fontWeight: '600', color: '#000', marginBottom: 4 }}>
+                                    {selectedAddress.full_name}
+                                </Typography>
+                                <Typography style={{ fontSize: 14, color: '#666', lineHeight: 22 }}>
+                                    {selectedAddress.address}{'\n'}
+                                    {selectedAddress.city}, {selectedAddress.state} {selectedAddress.pincode}
+                                </Typography>
+                                <Typography style={{ fontSize: 13, color: '#999', marginTop: 8, fontWeight: '500' }}>
+                                    Phone: {selectedAddress.phone}
+                                </Typography>
+                            </View>
+                        ) : (
+                            <TouchableOpacity style={{ padding: 20, alignItems: 'center' }} onPress={() => navigation.navigate('ShippingAddress')}>
+                                <Ionicons name="location-outline" size={32} color="#ccc" style={{ marginBottom: 8 }} />
+                                <Typography style={{ fontSize: 14, color: '#666', fontWeight: '500' }}>Please select a delivery address</Typography>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {/* Order Summary */}
@@ -278,21 +276,6 @@ export default function CheckoutScreen() {
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
-    );
-}
-
-function InputField({ label, last, multiline, ...props }: any) {
-    return (
-        <View style={[styles.inputWrapper, !last && styles.inputBorder]}>
-            <Typography style={styles.inputLabel}>{label}</Typography>
-            <TextInput
-                style={[styles.input, multiline && { height: 72, textAlignVertical: 'top' }]}
-                placeholderTextColor="#bbb"
-                multiline={multiline}
-                returnKeyType="next"
-                {...props}
-            />
-        </View>
     );
 }
 

@@ -30,7 +30,7 @@ export default async function AdminIndexPage() {
         if (order.status !== 'Cancelled') {
             totalRevenue += Number(order.total_amount || 0);
         }
-        if (order.status === 'Processing' || order.status === 'Shipped') {
+        if (order.status !== 'Cancelled' && order.status !== 'Delivered') {
             activeOrders++;
         }
 
