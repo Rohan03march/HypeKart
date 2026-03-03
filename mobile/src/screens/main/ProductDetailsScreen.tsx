@@ -12,6 +12,7 @@ import { Typography } from '../../components/ui/Typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useWishlistStore } from '../../store/wishlistStore';
+import Carousel from 'react-native-reanimated-carousel';
 
 const { width } = Dimensions.get('window');
 
@@ -57,7 +58,7 @@ export default function ProductDetailsScreen() {
     const sizeOptions: string[] = product?.sizes ?? ['S', 'M', 'L', 'XL'];
     const colorOptions: string[] = product?.colors ?? ['#1a1a1a', '#9ca3af', '#e5e7eb'];
 
-    const [activeImage, setActiveImage] = useState(productImages[0]);
+    const [activeIndex, setActiveIndex] = useState(0);
     const [selectedSize, setSelectedSize] = useState(sizeOptions[0]);
     const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
     const [added, setAdded] = useState(false);
@@ -110,11 +111,33 @@ export default function ProductDetailsScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
 
-                {/* Main Image */}
+                {/* Main Image Carousel */}
                 <View style={styles.mainImageContainer}>
-                    <Image source={{ uri: activeImage }} style={styles.mainImage} resizeMode="cover" />
+                    {productImages.length > 1 ? (
+                        <Carousel
+                            loop
+                            width={width}
+                            height={width * 1.25}
+                            autoPlay={false}
+                            data={productImages}
+                            scrollAnimationDuration={600}
+                            onSnapToItem={(index) => setActiveIndex(index)}
+                            renderItem={({ item }) => (
+                                <Image source={{ uri: item }} style={styles.mainImage} resizeMode="cover" />
+                            )}
+                        />
+                    ) : (
+                        <Image source={{ uri: productImages[0] }} style={styles.mainImage} resizeMode="cover" />
+                    )}
 
-
+                    {/* Pagination Dots (if multiple images) */}
+                    {productImages.length > 1 && (
+                        <View style={styles.paginationContainer}>
+                            {productImages.map((_, index) => (
+                                <View key={index} style={[styles.dot, activeIndex === index && styles.activeDot]} />
+                            ))}
+                        </View>
+                    )}
 
                     {/* Brand pill overlay */}
                     <View style={styles.brandOverlay}>
@@ -122,30 +145,6 @@ export default function ProductDetailsScreen() {
                         <Typography style={styles.brandOverlayText}>{productBrand}</Typography>
                     </View>
                 </View>
-
-                {/* Thumbnail strip — only shown when multiple images */}
-                {productImages.length > 1 && (
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.thumbnailScroll}
-                        contentContainerStyle={styles.thumbnailContent}
-                    >
-                        {productImages.map((img, i) => {
-                            const isActive = img === activeImage;
-                            return (
-                                <TouchableOpacity
-                                    key={i}
-                                    onPress={() => setActiveImage(img)}
-                                    style={[styles.thumbnailWrap, isActive && styles.thumbnailWrapActive]}
-                                    activeOpacity={0.8}
-                                >
-                                    <Image source={{ uri: img }} style={styles.thumbnail} resizeMode="cover" />
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                )}
 
                 {/* Product Info */}
                 <View style={styles.content}>
@@ -308,36 +307,28 @@ const styles = StyleSheet.create({
         letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
-
-    // Thumbnails
-    thumbnailScroll: {
-        marginTop: 12,
+    paginationContainer: {
+        position: 'absolute',
+        bottom: 24,
+        right: 16,
+        flexDirection: 'row',
+        gap: 6,
     },
-    thumbnailContent: {
-        paddingHorizontal: 16,
-        gap: 10,
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: 'rgba(0,0,0,0.2)',
     },
-    thumbnailWrap: {
-        width: 68,
-        height: 68,
-        borderRadius: 12,
-        overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: 'transparent',
-        backgroundColor: '#f3f3f3',
-    },
-    thumbnailWrapActive: {
-        borderColor: '#000',
-    },
-    thumbnail: {
-        width: '100%',
-        height: '100%',
+    activeDot: {
+        backgroundColor: '#000',
+        width: 16,
     },
 
     // Content
     content: {
         paddingHorizontal: 20,
-        paddingTop: 20,
+        paddingTop: 24,
     },
     productName: {
         fontSize: 26,

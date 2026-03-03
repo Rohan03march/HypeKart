@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useUser } from '@clerk/clerk-expo';
@@ -22,6 +23,58 @@ const CATEGORIES = [
     { id: '5', name: 'Footwear' },
     { id: '6', name: 'Accessories' },
 ];
+
+const CAROUSEL_DATA = [
+    {
+        id: '1',
+        title: 'Complete Collection',
+        subtitle: 'Explore the full HypeKart catalog.',
+        tag: 'SHOP ALL',
+        image: require('../../../assets/banners/banner1.png'),
+        categoryId: '1'
+    },
+    {
+        id: '2',
+        title: 'Menswear',
+        subtitle: 'Premium tactical gear and streetwear.',
+        tag: 'MENS',
+        image: require('../../../assets/banners/banner_men.png'),
+        categoryId: '2'
+    },
+    {
+        id: '3',
+        title: 'Womenswear',
+        subtitle: 'Luxury outerwear and modern pieces.',
+        tag: 'WOMENS',
+        image: require('../../../assets/banners/banner_women.png'),
+        categoryId: '3'
+    },
+    {
+        id: '4',
+        title: 'Apparel Drops',
+        subtitle: 'Premium tees, hoodies, and staples.',
+        tag: 'APPAREL',
+        image: require('../../../assets/banners/banner_apparel.png'),
+        categoryId: '4'
+    },
+    {
+        id: '5',
+        title: 'Exclusive Footwear',
+        subtitle: 'Limited sneaker drops and hype kicks.',
+        tag: 'FOOTWEAR',
+        image: require('../../../assets/banners/banner2.png'),
+        categoryId: '5'
+    },
+    {
+        id: '6',
+        title: 'The Accessories',
+        subtitle: 'Technical gear and luxury lifestyle.',
+        tag: 'ACCESSORIES',
+        image: require('../../../assets/banners/banner3.png'),
+        categoryId: '6'
+    }
+];
+
 export default function HomeScreen() {
     const { user } = useUser();
     const navigation = useNavigation<any>();
@@ -216,6 +269,7 @@ export default function HomeScreen() {
         }
     };
 
+    const [activeIndex, setActiveIndex] = useState(0);
 
     const getPrimaryImage = (images: string[]) => {
         if (images && images.length > 0) return images[0];
@@ -333,25 +387,53 @@ export default function HomeScreen() {
                         </View>
                     ) : (
                         <>
-                            {/* Hero Banner */}
+                            {/* Hero Banner Carousel */}
                             <View style={styles.heroContainer}>
-                                <Image
-                                    source={{ uri: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=1200&auto=format&fit=crop' }}
-                                    style={StyleSheet.absoluteFillObject}
-                                    resizeMode="cover"
+                                <Carousel
+                                    loop
+                                    width={width - 48}
+                                    height={400}
+                                    autoPlay={!isSearching}
+                                    autoPlayInterval={3500}
+                                    data={CAROUSEL_DATA}
+                                    scrollAnimationDuration={1000}
+                                    onSnapToItem={(index) => setActiveIndex(index)}
+                                    mode="parallax"
+                                    modeConfig={{
+                                        parallaxScrollingScale: 0.9,
+                                        parallaxScrollingOffset: 50,
+                                    }}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity
+                                            activeOpacity={0.9}
+                                            style={styles.heroOuterCard}
+                                            onPress={() => {
+                                                const cat = CATEGORIES.find(c => c.id === item.categoryId);
+                                                if (cat) {
+                                                    navigation.navigate('Catalog', { title: item.title, action: 'category', categoryName: cat.name });
+                                                }
+                                            }}
+                                        >
+                                            <Image
+                                                source={item.image}
+                                                style={StyleSheet.absoluteFillObject}
+                                                resizeMode="cover"
+                                            />
+                                            <LinearGradient
+                                                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                                                style={StyleSheet.absoluteFillObject}
+                                            />
+                                            <View style={styles.heroContent}>
+                                                <View style={styles.heroTag}>
+                                                    <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+                                                    <Typography style={styles.heroTagText}>{item.tag}</Typography>
+                                                </View>
+                                                <Typography style={styles.heroTitle} numberOfLines={1}>{item.title}</Typography>
+                                                <Typography style={styles.heroSubtitle}>{item.subtitle}</Typography>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
                                 />
-                                <LinearGradient
-                                    colors={['transparent', 'rgba(0,0,0,0.8)']}
-                                    style={StyleSheet.absoluteFillObject}
-                                />
-                                <View style={styles.heroContent}>
-                                    <View style={styles.heroTag}>
-                                        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-                                        <Typography style={styles.heroTagText}>NEW CAPSULE</Typography>
-                                    </View>
-                                    <Typography style={styles.heroTitle}>Summer '25</Typography>
-                                    <Typography style={styles.heroSubtitle}>Explore the latest curated essentials.</Typography>
-                                </View>
                             </View>
 
                             {/* Categories */}
@@ -544,6 +626,11 @@ const styles = StyleSheet.create({
         marginHorizontal: 24,
         marginBottom: 32,
         height: 400,
+        position: 'relative',
+    },
+    heroOuterCard: {
+        width: '100%',
+        height: 400,
         borderRadius: 32,
         overflow: 'hidden',
         justifyContent: 'flex-end',
@@ -554,7 +641,31 @@ const styles = StyleSheet.create({
         elevation: 10,
     },
     heroContent: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
         padding: 32,
+        paddingBottom: 48, // space for dots
+    },
+    paginationContainer: {
+        position: 'absolute',
+        bottom: 16,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.4)',
+    },
+    activeDot: {
+        backgroundColor: '#fff',
+        width: 24,
     },
     heroTag: {
         paddingHorizontal: 16,
@@ -595,24 +706,30 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderRadius: 24,
         backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.04,
         shadowRadius: 8,
         elevation: 2,
     },
     categoryPillActive: {
         backgroundColor: '#000',
+        borderColor: '#000',
+        shadowOpacity: 0.15,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 12,
+        elevation: 6,
     },
     categoryText: {
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#666',
         letterSpacing: 0.5,
     },
     categoryTextActive: {
         color: '#fff',
-        fontWeight: '600',
     },
     sectionHeader: {
         flexDirection: 'row',

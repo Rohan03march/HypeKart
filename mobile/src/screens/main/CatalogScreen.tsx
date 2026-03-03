@@ -33,6 +33,13 @@ export default function CatalogScreen() {
                 query = query.order('created_at', { ascending: true }).limit(50);
             } else if (action === 'new_arrivals') {
                 query = query.eq('is_new_arrival', true).order('created_at', { ascending: false }).limit(50);
+            } else if (action === 'category') {
+                const categoryName = route.params?.categoryName;
+                if (categoryName && categoryName !== 'All') {
+                    query = query.eq('category', categoryName).order('created_at', { ascending: false }).limit(50);
+                } else {
+                    query = query.order('created_at', { ascending: false }).limit(50);
+                }
             } else {
                 query = query.order('created_at', { ascending: false }).limit(50);
             }
