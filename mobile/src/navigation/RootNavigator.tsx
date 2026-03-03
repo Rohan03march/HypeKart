@@ -17,6 +17,7 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import HomeScreen from '../screens/main/HomeScreen';
+import CatalogScreen from '../screens/main/CatalogScreen';
 import ProductDetailsScreen from '../screens/main/ProductDetailsScreen';
 import CartScreen from '../screens/main/CartScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
@@ -148,6 +149,7 @@ export default function RootNavigator() {
                         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                     )}
                     <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+                    <Stack.Screen name="Catalog" component={CatalogScreen} />
                     <Stack.Screen
                         name="ProductDetails"
                         component={ProductDetailsScreen}

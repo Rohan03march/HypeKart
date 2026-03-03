@@ -26,3 +26,43 @@ export async function createProductAction(productData: any) {
     revalidatePath('/admin/products');
     return { success: true };
 }
+
+export async function updateProductAction(id: string, productData: any) {
+    const { data, error } = await supabaseAdmin
+        .from('products')
+        .update({
+            title: productData.title,
+            description: productData.description,
+            base_price: productData.base_price,
+            stock: productData.stock,
+            sizes: productData.sizes,
+            colors: productData.colors,
+            category: productData.category,
+            images: productData.images,
+            is_new_arrival: productData.is_new_arrival
+        })
+        .eq('id', id);
+
+    if (error) {
+        console.error("Supabase Update Error:", error);
+        throw new Error(error.message);
+    }
+
+    revalidatePath('/admin/products');
+    return { success: true };
+}
+
+export async function deleteProductAction(id: string) {
+    const { error } = await supabaseAdmin
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error("Supabase Delete Error:", error);
+        throw new Error(error.message);
+    }
+
+    revalidatePath('/admin/products');
+    return { success: true };
+}

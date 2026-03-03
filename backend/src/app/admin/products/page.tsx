@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MoreHorizontal, Image as ImageIcon } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
 import NewProductTrigger from "@/components/admin/NewProductTrigger";
+import ProductRowActions from "@/components/admin/ProductRowActions";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,11 +26,11 @@ export default async function AdminProductsPage() {
                 <NewProductTrigger />
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#111111]/80 backdrop-blur-xl shadow-2xl overflow-hidden relative">
+            <div className="rounded-3xl border border-white/10 bg-[#111111]/80 backdrop-blur-xl shadow-2xl overflow-visible relative">
                 {/* Subtle gradient overlay for the table container */}
-                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none rounded-3xl" />
 
-                <div className="overflow-x-auto">
+                <div className="overflow-visible">
                     <table className="w-full text-sm text-left text-gray-300">
                         <thead className="text-[11px] text-gray-500 uppercase bg-[#0a0a0a]/50 border-b border-white/5 font-bold tracking-widest">
                             <tr>
@@ -90,9 +91,7 @@ export default async function AdminProductsPage() {
                                                 </span>
                                             </td>
                                             <td className="px-8 py-5 text-right">
-                                                <Link href={`/admin/products/${product.id}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Link>
+                                                <ProductRowActions product={product} />
                                             </td>
                                         </tr>
                                     );

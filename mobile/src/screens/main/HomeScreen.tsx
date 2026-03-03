@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useUser } from '@clerk/clerk-expo';
@@ -34,6 +34,13 @@ export default function HomeScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // Search States
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [isSearchLoading, setIsSearchLoading] = useState(false);
+    const searchInputRef = useRef<TextInput>(null);
+
     const { addresses, selectedAddressId, addAddress } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
 
@@ -42,8 +49,44 @@ export default function HomeScreen() {
     }, [activeCategory]);
 
     useEffect(() => {
+        fetchProducts();
+    }, [activeCategory]);
+
+    useEffect(() => {
         checkLocation();
     }, []);
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchQuery.trim().length > 0) {
+                fetchSearchResults(searchQuery);
+            } else {
+                setSearchResults([]);
+            }
+        }, 400);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
+
+    const fetchSearchResults = async (query: string) => {
+        setIsSearchLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .ilike('title', `%${query}%`)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (!error && data) {
+                setSearchResults(data);
+            }
+        } catch (error) {
+            console.error("Error searching products:", error);
+        } finally {
+            setIsSearchLoading(false);
+        }
+    };
 
     const checkLocation = async () => {
         if (addresses.length > 0) return; // Only fetch if no addresses exist
@@ -184,28 +227,64 @@ export default function HomeScreen() {
             <SafeAreaView style={{ flex: 1 }}>
 
                 <View style={styles.header}>
-                    <View style={{ flex: 1, paddingRight: 16 }}>
-                        <Typography style={styles.logoText}>HYPEKART</Typography>
-                        <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
-                            onPress={() => navigation.navigate('ShippingAddress')}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="location" size={12} color="#666" />
-                            <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500', flexShrink: 1 }} numberOfLines={1}>
-                                {selectedAddress ? selectedAddress.address : 'Select Delivery Address'}
-                            </Typography>
-                            <Ionicons name="chevron-down" size={12} color="#666" style={{ marginLeft: 2 }} />
-                        </TouchableOpacity>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                        <TouchableOpacity onPress={() => { }} style={styles.iconBtn}>
-                            <Ionicons name="search-outline" size={20} color="#000" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={styles.iconBtn}>
-                            <Ionicons name="heart-outline" size={20} color="#000" />
-                        </TouchableOpacity>
-                    </View>
+                    {isSearching ? (
+                        <View style={styles.searchHeaderContainer}>
+                            <View style={styles.searchInputContainer}>
+                                <Ionicons name="search" size={18} color="#666" style={{ marginLeft: 12 }} />
+                                <TextInput
+                                    ref={searchInputRef}
+                                    style={styles.searchInput}
+                                    placeholder="Search products..."
+                                    placeholderTextColor="#999"
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    autoFocus
+                                />
+                                {searchQuery.length > 0 && (
+                                    <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 8 }}>
+                                        <Ionicons name="close-circle" size={18} color="#ccc" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setIsSearching(false);
+                                    setSearchQuery('');
+                                }}
+                                style={styles.cancelSearchBtn}
+                            >
+                                <Typography style={{ fontWeight: '600', color: '#000' }}>Cancel</Typography>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={{ flex: 1, paddingRight: 16 }}>
+                                <Typography style={styles.logoText}>HYPEKART</Typography>
+                                <TouchableOpacity
+                                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+                                    onPress={() => navigation.navigate('ShippingAddress')}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons name="location" size={12} color="#666" />
+                                    <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500', flexShrink: 1 }} numberOfLines={1}>
+                                        {selectedAddress ? selectedAddress.address : 'Select Delivery Address'}
+                                    </Typography>
+                                    <Ionicons name="chevron-down" size={12} color="#666" style={{ marginLeft: 2 }} />
+                                </TouchableOpacity>
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <TouchableOpacity
+                                    onPress={() => setIsSearching(true)}
+                                    style={styles.iconBtn}
+                                >
+                                    <Ionicons name="search-outline" size={20} color="#000" />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={styles.iconBtn}>
+                                    <Ionicons name="heart-outline" size={20} color="#000" />
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    )}
                 </View>
 
                 <ScrollView
@@ -219,151 +298,189 @@ export default function HomeScreen() {
                             colors={['#000']}
                         />
                     }
+                    keyboardShouldPersistTaps="handled"
                 >
 
-                    {/* Hero Banner */}
-                    <View style={styles.heroContainer}>
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=1200&auto=format&fit=crop' }}
-                            style={StyleSheet.absoluteFillObject}
-                            resizeMode="cover"
-                        />
-                        <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.8)']}
-                            style={StyleSheet.absoluteFillObject}
-                        />
-                        <View style={styles.heroContent}>
-                            <View style={styles.heroTag}>
-                                <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-                                <Typography style={styles.heroTagText}>NEW CAPSULE</Typography>
-                            </View>
-                            <Typography style={styles.heroTitle}>Summer '25</Typography>
-                            <Typography style={styles.heroSubtitle}>Explore the latest curated essentials.</Typography>
+                    {isSearching ? (
+                        <View style={{ flex: 1, minHeight: 400 }}>
+                            {searchQuery.trim() === '' ? (
+                                <View style={{ padding: 40, alignItems: 'center' }}>
+                                    <Ionicons name="search" size={48} color="#ddd" />
+                                    <Typography style={{ color: '#999', marginTop: 16, fontSize: 16 }}>Search for sneakers, apparel...</Typography>
+                                </View>
+                            ) : isSearchLoading ? (
+                                <ActivityIndicator color="#000" style={{ marginTop: 40 }} />
+                            ) : searchResults.length === 0 ? (
+                                <View style={{ padding: 40, alignItems: 'center' }}>
+                                    <Typography style={{ color: '#000', fontSize: 18, fontWeight: '600' }}>No results found</Typography>
+                                    <Typography style={{ color: '#999', marginTop: 8, textAlign: 'center' }}>We couldn't find anything matching "{searchQuery}"</Typography>
+                                </View>
+                            ) : (
+                                <View style={[styles.newGrid, { paddingTop: 16 }]}>
+                                    {searchResults.map((item) => (
+                                        <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
+                                            <View style={styles.newGridImgWrapper}>
+                                                <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
+                                            </View>
+                                            <View style={styles.newGridInfo}>
+                                                <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
+                                                <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
                         </View>
-                    </View>
+                    ) : (
+                        <>
+                            {/* Hero Banner */}
+                            <View style={styles.heroContainer}>
+                                <Image
+                                    source={{ uri: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=1200&auto=format&fit=crop' }}
+                                    style={StyleSheet.absoluteFillObject}
+                                    resizeMode="cover"
+                                />
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                                    style={StyleSheet.absoluteFillObject}
+                                />
+                                <View style={styles.heroContent}>
+                                    <View style={styles.heroTag}>
+                                        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+                                        <Typography style={styles.heroTagText}>NEW CAPSULE</Typography>
+                                    </View>
+                                    <Typography style={styles.heroTitle}>Summer '25</Typography>
+                                    <Typography style={styles.heroSubtitle}>Explore the latest curated essentials.</Typography>
+                                </View>
+                            </View>
 
-                    {/* Categories */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.categoriesScroll}
-                        contentContainerStyle={styles.categoriesContainer}
-                    >
-                        {CATEGORIES.map((cat) => {
-                            const isActive = activeCategory === cat.id;
-                            return (
-                                <TouchableOpacity
-                                    key={cat.id}
-                                    onPress={() => setActiveCategory(cat.id)}
-                                    style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                                >
-                                    <Typography style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                                        {cat.name}
-                                    </Typography>
+                            {/* Categories */}
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.categoriesScroll}
+                                contentContainerStyle={styles.categoriesContainer}
+                            >
+                                {CATEGORIES.map((cat) => {
+                                    const isActive = activeCategory === cat.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            onPress={() => setActiveCategory(cat.id)}
+                                            style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                                        >
+                                            <Typography style={[styles.categoryText, isActive && styles.categoryTextActive]}>
+                                                {cat.name}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+
+                            {/* Trending Now */}
+                            <View style={styles.sectionHeader}>
+                                <Typography style={styles.sectionTitle}>Trending</Typography>
+                                <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'Trending', action: 'trending' })}>
+                                    <Typography style={styles.seeAllText}>See all</Typography>
                                 </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
+                            </View>
 
-                    {/* Trending Now */}
-                    <View style={styles.sectionHeader}>
-                        <Typography style={styles.sectionTitle}>Trending</Typography>
-                        <TouchableOpacity>
-                            <Typography style={styles.seeAllText}>See all</Typography>
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.horizontalScroll}
-                        contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 40, gap: 16 }}
-                        snapToInterval={200}
-                        decelerationRate="fast"
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
-                        ) : trendingProducts.map((prod) => (
-                            <TouchableOpacity key={prod.id} style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { product: prod })}>
-                                <View style={styles.productImgWrapper}>
-                                    <Image source={{ uri: getPrimaryImage(prod.images) }} style={styles.productImg} resizeMode="cover" />
-                                    <View style={styles.productImgOverlay} />
-                                    <TouchableOpacity
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            toggle({
-                                                id: prod.id,
-                                                title: prod.title,
-                                                brand: prod.brand || 'HYPEKART',
-                                                price: prod.base_price,
-                                                image: getPrimaryImage(prod.images),
-                                                images: prod.images,
-                                                description: prod.description,
-                                                sizes: prod.sizes,
-                                                colors: prod.colors,
-                                            });
-                                        }}
-                                        style={styles.heartBtn}
-                                    >
-                                        <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-                                        <Ionicons
-                                            name={isWishlisted(prod.id) ? 'heart' : 'heart-outline'}
-                                            size={18}
-                                            color={isWishlisted(prod.id) ? '#ff4b4b' : '#fff'}
-                                        />
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.horizontalScroll}
+                                contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 40, gap: 16 }}
+                                snapToInterval={200}
+                                decelerationRate="fast"
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
+                                ) : trendingProducts.map((prod) => (
+                                    <TouchableOpacity key={prod.id} style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { product: prod })}>
+                                        <View style={styles.productImgWrapper}>
+                                            <Image source={{ uri: getPrimaryImage(prod.images) }} style={styles.productImg} resizeMode="cover" />
+                                            <View style={styles.productImgOverlay} />
+                                            <TouchableOpacity
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    toggle({
+                                                        id: prod.id,
+                                                        title: prod.title,
+                                                        brand: prod.brand || 'HYPEKART',
+                                                        price: prod.base_price,
+                                                        image: getPrimaryImage(prod.images),
+                                                        images: prod.images,
+                                                        description: prod.description,
+                                                        sizes: prod.sizes,
+                                                        colors: prod.colors,
+                                                    });
+                                                }}
+                                                style={styles.heartBtn}
+                                            >
+                                                <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+                                                <Ionicons
+                                                    name={isWishlisted(prod.id) ? 'heart' : 'heart-outline'}
+                                                    size={18}
+                                                    color={isWishlisted(prod.id) ? '#ff4b4b' : '#fff'}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                        <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
+                                        <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
+                                        <Typography style={styles.productPrice}>₹{prod.base_price?.toLocaleString('en-IN')}</Typography>
                                     </TouchableOpacity>
-                                </View>
-                                <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
-                                <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
-                                <Typography style={styles.productPrice}>₹{prod.base_price?.toLocaleString('en-IN')}</Typography>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                                ))}
+                            </ScrollView>
 
-                    {/* New Arrivals Grid */}
-                    <View style={styles.sectionHeader}>
-                        <Typography style={styles.sectionTitle}>New Arrivals</Typography>
-                    </View>
+                            {/* New Arrivals Grid */}
+                            <View style={styles.sectionHeader}>
+                                <Typography style={styles.sectionTitle}>New Arrivals</Typography>
+                                <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals' })}>
+                                    <Typography style={styles.seeAllText}>See all</Typography>
+                                </TouchableOpacity>
+                            </View>
 
-                    <View style={styles.newGrid}>
-                        {isLoading ? (
-                            <ActivityIndicator color="#000" style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
-                        ) : newArrivals.map((item) => (
-                            <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                <View style={styles.newGridImgWrapper}>
-                                    <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
-                                    <TouchableOpacity
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            toggle({
-                                                id: item.id,
-                                                title: item.title,
-                                                brand: item.brand || 'HYPEKART',
-                                                price: item.base_price,
-                                                image: getPrimaryImage(item.images),
-                                                images: item.images,
-                                                description: item.description,
-                                                sizes: item.sizes,
-                                                colors: item.colors,
-                                            });
-                                        }}
-                                        style={styles.heartBtn}
-                                    >
-                                        <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-                                        <Ionicons
-                                            name={isWishlisted(item.id) ? 'heart' : 'heart-outline'}
-                                            size={18}
-                                            color={isWishlisted(item.id) ? '#ff4b4b' : '#fff'}
-                                        />
+                            <View style={styles.newGrid}>
+                                {isLoading ? (
+                                    <ActivityIndicator color="#000" style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
+                                ) : newArrivals.map((item) => (
+                                    <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
+                                        <View style={styles.newGridImgWrapper}>
+                                            <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
+                                            <TouchableOpacity
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    toggle({
+                                                        id: item.id,
+                                                        title: item.title,
+                                                        brand: item.brand || 'HYPEKART',
+                                                        price: item.base_price,
+                                                        image: getPrimaryImage(item.images),
+                                                        images: item.images,
+                                                        description: item.description,
+                                                        sizes: item.sizes,
+                                                        colors: item.colors,
+                                                    });
+                                                }}
+                                                style={styles.heartBtn}
+                                            >
+                                                <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+                                                <Ionicons
+                                                    name={isWishlisted(item.id) ? 'heart' : 'heart-outline'}
+                                                    size={18}
+                                                    color={isWishlisted(item.id) ? '#ff4b4b' : '#fff'}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={styles.newGridInfo}>
+                                            <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
+                                            <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                        </View>
                                     </TouchableOpacity>
-                                </View>
-                                <View style={styles.newGridInfo}>
-                                    <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
-                                    <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                                ))}
+                            </View>
+                        </>
+                    )}
 
                 </ScrollView>
             </SafeAreaView>
@@ -383,6 +500,31 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 12,
         paddingBottom: 20,
+    },
+    searchHeaderContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+        gap: 12,
+    },
+    searchInputContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f1f1',
+        borderRadius: 100,
+        height: 44,
+    },
+    searchInput: {
+        flex: 1,
+        height: '100%',
+        marginLeft: 8,
+        fontSize: 15,
+        color: '#000',
+    },
+    cancelSearchBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 4,
     },
     logoText: {
         fontSize: 24,
