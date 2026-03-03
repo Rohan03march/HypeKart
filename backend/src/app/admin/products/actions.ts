@@ -13,6 +13,7 @@ export async function createProductAction(productData: any) {
             stock: productData.stock,
             sizes: productData.sizes,
             colors: productData.colors,
+            category: productData.category,
             images: productData.images,
             is_new_arrival: productData.is_new_arrival
         });

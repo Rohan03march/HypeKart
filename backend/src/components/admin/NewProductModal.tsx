@@ -22,6 +22,7 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
         stock: "10",
         sizes: "S, M, L",
         colors: "Black, White",
+        category: "Men",
     });
 
     type ImageAsset = { type: 'file', file: File, preview: string } | { type: 'url', url: string };
@@ -80,6 +81,7 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
                 stock: parseInt(formData.stock, 10),
                 sizes: sizesList.length > 0 ? sizesList : ['OS'],
                 colors: colorsList.length > 0 ? colorsList : ['Default'],
+                category: formData.category,
                 images: finalImageUrls,
                 is_new_arrival: true
             };
@@ -87,7 +89,7 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
             await createProductAction(newProduct);
 
             // Reset state
-            setFormData({ title: "", description: "", base_price: "", stock: "10", sizes: "S, M, L", colors: "Black, White" });
+            setFormData({ title: "", description: "", base_price: "", stock: "10", sizes: "S, M, L", colors: "Black, White", category: "Men" });
             setImages([]);
 
             router.refresh();
@@ -218,6 +220,19 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
                                 <div className="relative group/input">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Tag className="h-5 w-5 text-zinc-500 group-focus-within/input:text-white transition-colors" /></div>
                                     <input id="colors" type="text" required placeholder="Washed Black, Vintage Grey" className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 pl-12 pr-4 outline-none font-medium" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="category" className="text-sm font-semibold text-zinc-300 ml-1">Category</label>
+                                <div className="relative group/input">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><LinkIcon className="h-5 w-5 text-zinc-500 group-focus-within/input:text-white transition-colors" /></div>
+                                    <select id="category" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 pl-12 pr-4 outline-none font-medium appearance-none" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                                        <option value="Men" className="bg-black text-white">Men</option>
+                                        <option value="Women" className="bg-black text-white">Women</option>
+                                        <option value="Apparel" className="bg-black text-white">Apparel</option>
+                                        <option value="Footwear" className="bg-black text-white">Footwear</option>
+                                        <option value="Accessories" className="bg-black text-white">Accessories</option>
+                                    </select>
                                 </div>
                             </div>
                             <div className="space-y-2 md:col-span-2">

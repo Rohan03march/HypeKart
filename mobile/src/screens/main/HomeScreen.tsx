@@ -16,10 +16,11 @@ const { width } = Dimensions.get('window');
 
 const CATEGORIES = [
     { id: '1', name: 'All' },
-    { id: '2', name: 'Apparel' },
-    { id: '3', name: 'Footwear' },
-    { id: '4', name: 'Accessories' },
-    { id: '5', name: 'Objects' },
+    { id: '2', name: 'Men' },
+    { id: '3', name: 'Women' },
+    { id: '4', name: 'Apparel' },
+    { id: '5', name: 'Footwear' },
+    { id: '6', name: 'Accessories' },
 ];
 export default function HomeScreen() {
     const { user } = useUser();
@@ -38,6 +39,9 @@ export default function HomeScreen() {
 
     useEffect(() => {
         fetchProducts();
+    }, [activeCategory]);
+
+    useEffect(() => {
         checkLocation();
     }, []);
 
@@ -54,6 +58,38 @@ export default function HomeScreen() {
             let location = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.BestForNavigation,
             });
+
+            try {
+                // OpenStreetMap Nominatim API (No Key Required)
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.coords.latitude}&lon=${location.coords.longitude}&zoom=18&addressdetails=1`, {
+                    headers: {
+                        'User-Agent': 'HypeKartApp/1.0'
+                    }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.address) {
+                        const addr = data.address;
+                        const addrFull = data.display_name;
+
+                        addAddress({
+                            id: Date.now().toString(),
+                            full_name: user?.fullName || 'My Name',
+                            phone: '',
+                            address: addrFull,
+                            city: addr.city || addr.town || addr.village || '',
+                            state: addr.state || '',
+                            pincode: addr.postcode || '',
+                            is_current_location: true
+                        });
+                        return; // Successfully used OpenStreetMap, exit early
+                    }
+                }
+            } catch (e) {
+                console.error("OpenStreetMap Geocoding failed, falling back to Expo...", e);
+            }
+
             let reverseGeocode = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude
@@ -93,24 +129,38 @@ export default function HomeScreen() {
             setIsLoading(true);
         }
         try {
-            // Fetch Trending (just taking the earliest products for now as "trending")
-            const { data: trendingData, error: trendingError } = await supabase
+            const selectedCat = CATEGORIES.find(c => c.id === activeCategory);
+            const isAll = !selectedCat || selectedCat.id === '1';
+
+            // Fetch Trending
+            let trendingQuery = supabase
                 .from('products')
                 .select('*')
                 .order('created_at', { ascending: true })
                 .limit(6);
+
+            if (!isAll) {
+                trendingQuery = trendingQuery.eq('category', selectedCat.name);
+            }
+
+            const { data: trendingData, error: trendingError } = await trendingQuery;
 
             if (!trendingError && trendingData) {
                 setTrendingProducts(trendingData);
             }
 
             // Fetch New Drops
-            const { data: newData, error: newError } = await supabase
+            let newQuery = supabase
                 .from('products')
                 .select('*')
                 .eq('is_new_arrival', true)
                 .order('created_at', { ascending: false })
                 .limit(4);
+
+            if (!isAll) {
+                newQuery = newQuery.eq('category', selectedCat.name);
+            }
+            const { data: newData, error: newError } = await newQuery;
 
             if (!newError && newData) {
                 setNewArrivals(newData);
@@ -134,7 +184,7 @@ export default function HomeScreen() {
             <SafeAreaView style={{ flex: 1 }}>
 
                 <View style={styles.header}>
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 16 }}>
                         <Typography style={styles.logoText}>HYPEKART</Typography>
                         <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
@@ -142,15 +192,20 @@ export default function HomeScreen() {
                             activeOpacity={0.7}
                         >
                             <Ionicons name="location" size={12} color="#666" />
-                            <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500' }}>
-                                {selectedAddress ? `${selectedAddress.city}, ${selectedAddress.pincode}` : 'Select Delivery Address'}
+                            <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500', flexShrink: 1 }} numberOfLines={1}>
+                                {selectedAddress ? selectedAddress.address : 'Select Delivery Address'}
                             </Typography>
                             <Ionicons name="chevron-down" size={12} color="#666" style={{ marginLeft: 2 }} />
                         </TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => { }} style={styles.iconBtn}>
-                        <Ionicons name="search-outline" size={20} color="#000" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <TouchableOpacity onPress={() => { }} style={styles.iconBtn}>
+                            <Ionicons name="search-outline" size={20} color="#000" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={styles.iconBtn}>
+                            <Ionicons name="heart-outline" size={20} color="#000" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <ScrollView
