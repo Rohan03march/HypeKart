@@ -35,6 +35,27 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Deduct inventory stock sequentially
+        if (items && Array.isArray(items)) {
+            for (const item of items) {
+                if (item.product_id && typeof item.quantity === 'number') {
+                    const { data: product } = await supabaseAdmin
+                        .from('products')
+                        .select('stock')
+                        .eq('id', item.product_id)
+                        .single();
+
+                    if (product && typeof product.stock === 'number') {
+                        const newStock = Math.max(0, product.stock - item.quantity);
+                        await supabaseAdmin
+                            .from('products')
+                            .update({ stock: newStock })
+                            .eq('id', item.product_id);
+                    }
+                }
+            }
+        }
+
         return NextResponse.json({ orderId: data.id, success: true });
     } catch (error: any) {
         console.error('[save-order]', error);
