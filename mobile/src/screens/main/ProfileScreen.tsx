@@ -51,7 +51,7 @@ export default function ProfileScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const name = (user?.unsafeMetadata?.name as string) || user?.fullName || 'Hype User';
-    const email = user?.primaryEmailAddress?.emailAddress || '';
+    const email = (user?.unsafeMetadata?.contact_email as string) || user?.primaryEmailAddress?.emailAddress || '';
     const memberSince = user?.createdAt ? new Date(user.createdAt).getFullYear() : '2025';
 
     const fetchOrderCount = useCallback(async () => {
@@ -164,8 +164,8 @@ export default function ProfileScreen() {
                         <MenuItem
                             icon="card-outline"
                             label="Payment Methods"
-                            sublabel="Secured by Razorpay"
-                            onPress={() => Alert.alert('Payment Methods', 'Your payments are processed securely via Razorpay. Card details are never stored on our servers.')}
+                            sublabel="Secured by 256-bit Encryption"
+                            onPress={() => Alert.alert('Payment Methods', 'Your payments are processed through encrypted banking networks. Card details are never stored on our servers.')}
                         />
                     </View>
                 </View>

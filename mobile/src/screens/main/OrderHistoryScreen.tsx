@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, memo } from 'react';
+import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@clerk/clerk-expo';
 import { getUserOrders } from '../../lib/getUserOrders';
 import { useCartStore } from '../../store/cartStore';
+import { useCacheStore } from '../../store/cacheStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -20,6 +22,100 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     'Return Requested': { bg: '#fefce8', text: '#ca8a04' },
 };
 
+const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId }: any) => {
+    const items: any[] = order.order_items || [];
+    const statusStyle = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
+    const date = new Date(order.created_at).toLocaleDateString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric'
+    });
+    const canCancel = order.status === 'Placed';
+    const canReturn = order.status === 'Delivered';
+    const isCancelled = order.status === 'Cancelled';
+
+    return (
+        <View style={styles.orderCard}>
+            <View style={styles.orderHeader}>
+                <View style={{ flex: 1 }}>
+                    <Typography style={styles.orderId}>#{order.id.split('-')[0].toUpperCase()}</Typography>
+                    <Typography style={styles.orderDate}>{date}</Typography>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                    <Typography style={[styles.statusText, { color: statusStyle.text }]}>
+                        {order.status}
+                    </Typography>
+                </View>
+            </View>
+
+            {items.length > 0 && (
+                <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={items}
+                    keyExtractor={(item, idx) => item.product_id + idx.toString()}
+                    style={styles.itemsRow}
+                    contentContainerStyle={{ gap: 10 }}
+                    initialNumToRender={4}
+                    renderItem={({ item }) => (
+                        <View style={styles.itemThumb}>
+                            {item.image
+                                ? <Image source={{ uri: item.image }} style={styles.thumbImg} contentFit="cover" cachePolicy="memory-disk" />
+                                : <Ionicons name="image-outline" size={24} color="#ccc" />
+                            }
+                        </View>
+                    )}
+                />
+            )}
+
+            {items.map((item: any, i: number) => (
+                <View key={i} style={[styles.itemRow, i > 0 && styles.itemBorder]}>
+                    <View style={{ flex: 1 }}>
+                        <Typography style={styles.itemName} numberOfLines={1}>{item.name}</Typography>
+                        <Typography style={styles.itemMeta}>
+                            {[item.size, item.color, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
+                        </Typography>
+                    </View>
+                    {i === 0 && (
+                        <Typography style={styles.orderTotal}>₹{Number(order.total_amount).toLocaleString('en-IN')}</Typography>
+                    )}
+                </View>
+            ))}
+
+            {!isCancelled && (
+                <View style={styles.actionsRow}>
+                    <TouchableOpacity style={styles.actionBtnOutline} onPress={() => onRepurchase(items)} activeOpacity={0.7}>
+                        <Ionicons name="refresh-outline" size={15} color="#000" />
+                        <Typography style={styles.actionBtnOutlineText}>Repurchase</Typography>
+                    </TouchableOpacity>
+
+                    {canCancel && (
+                        <TouchableOpacity
+                            style={[styles.actionBtnOutline, styles.actionBtnRed]}
+                            onPress={() => onCancel(order.id)}
+                            disabled={cancellingId === order.id}
+                            activeOpacity={0.7}
+                        >
+                            {cancellingId === order.id
+                                ? <ActivityIndicator size="small" color="#ef4444" />
+                                : <>
+                                    <Ionicons name="close-circle-outline" size={15} color="#ef4444" />
+                                    <Typography style={[styles.actionBtnOutlineText, { color: '#ef4444' }]}>Cancel</Typography>
+                                </>
+                            }
+                        </TouchableOpacity>
+                    )}
+
+                    {canReturn && (
+                        <TouchableOpacity style={[styles.actionBtnOutline, styles.actionBtnOrange]} onPress={() => onReturn(order.id)} activeOpacity={0.7}>
+                            <Ionicons name="return-up-back-outline" size={15} color="#f97316" />
+                            <Typography style={[styles.actionBtnOutlineText, { color: '#f97316' }]}>Return</Typography>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
+        </View>
+    );
+});
+
 export default function OrderHistoryScreen() {
     const navigation = useNavigation<any>();
     const { user } = useUser();
@@ -28,24 +124,35 @@ export default function OrderHistoryScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const { getOrders, setOrders: cacheOrders } = useCacheStore();
 
-    const fetchOrders = useCallback(async () => {
+    const fetchOrders = useCallback(async (forceRefresh = false) => {
         if (!user?.id) { setIsLoading(false); return; }
         try {
+            if (!forceRefresh) {
+                const cached = getOrders(user.id);
+                if (cached) {
+                    setOrders(cached);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             const data = await getUserOrders(user.id);
             setOrders(data);
+            cacheOrders(user.id, data);
         } catch (e) {
             console.error(e);
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, getOrders, cacheOrders]);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
-        await fetchOrders();
+        await fetchOrders(true);
         setIsRefreshing(false);
     }, [fetchOrders]);
 
@@ -150,114 +257,26 @@ export default function OrderHistoryScreen() {
                     <Typography style={styles.emptySubtitle}>Your order history will appear here.</Typography>
                 </View>
             ) : (
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
+                <FlatList
+                    data={orders}
+                    keyExtractor={(order) => order.id}
+                    renderItem={({ item: order }) => (
+                        <OrderCard
+                            order={order}
+                            onRepurchase={handleRepurchase}
+                            onCancel={handleCancel}
+                            onReturn={handleReturn}
+                            cancellingId={cancellingId}
+                        />
+                    )}
                     contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+                    showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#000" colors={['#000']} />}
-                >
-                    {orders.map((order: any) => {
-                        const items: any[] = order.order_items || [];
-                        const statusStyle = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
-                        const date = new Date(order.created_at).toLocaleDateString('en-IN', {
-                            day: '2-digit', month: 'short', year: 'numeric'
-                        });
-                        const canCancel = order.status === 'Placed';
-                        const canReturn = order.status === 'Delivered';
-                        const isCancelled = order.status === 'Cancelled';
-
-                        return (
-                            <View key={order.id} style={styles.orderCard}>
-                                {/* Order header */}
-                                <View style={styles.orderHeader}>
-                                    <View style={{ flex: 1 }}>
-                                        <Typography style={styles.orderId}>#{order.id.split('-')[0].toUpperCase()}</Typography>
-                                        <Typography style={styles.orderDate}>{date}</Typography>
-                                    </View>
-                                    <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                                        <Typography style={[styles.statusText, { color: statusStyle.text }]}>
-                                            {order.status}
-                                        </Typography>
-                                    </View>
-                                </View>
-
-                                {/* Item thumbnails */}
-                                {items.length > 0 && (
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itemsRow} contentContainerStyle={{ gap: 10 }}>
-                                        {items.map((item: any, i: number) => (
-                                            <View key={i} style={styles.itemThumb}>
-                                                {item.image
-                                                    ? <Image source={{ uri: item.image }} style={styles.thumbImg} resizeMode="cover" />
-                                                    : <Ionicons name="image-outline" size={24} color="#ccc" />
-                                                }
-                                            </View>
-                                        ))}
-                                    </ScrollView>
-                                )}
-
-                                {/* Items detail */}
-                                {items.map((item: any, i: number) => (
-                                    <View key={i} style={[styles.itemRow, i > 0 && styles.itemBorder]}>
-                                        <View style={{ flex: 1 }}>
-                                            <Typography style={styles.itemName} numberOfLines={1}>{item.name}</Typography>
-                                            <Typography style={styles.itemMeta}>
-                                                {[item.size, item.color, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
-                                            </Typography>
-                                        </View>
-                                        {i === 0 && (
-                                            <Typography style={styles.orderTotal}>₹{Number(order.total_amount).toLocaleString('en-IN')}</Typography>
-                                        )}
-                                    </View>
-                                ))}
-
-
-                                {/* Action buttons */}
-                                {!isCancelled && (
-                                    <View style={styles.actionsRow}>
-                                        {/* Repurchase — always available (if not cancelled) */}
-                                        <TouchableOpacity
-                                            style={styles.actionBtnOutline}
-                                            onPress={() => handleRepurchase(items)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Ionicons name="refresh-outline" size={15} color="#000" />
-                                            <Typography style={styles.actionBtnOutlineText}>Repurchase</Typography>
-                                        </TouchableOpacity>
-
-                                        {/* Cancel — only when Placed */}
-                                        {canCancel && (
-                                            <TouchableOpacity
-                                                style={[styles.actionBtnOutline, styles.actionBtnRed]}
-                                                onPress={() => handleCancel(order.id)}
-                                                disabled={cancellingId === order.id}
-                                                activeOpacity={0.7}
-                                            >
-                                                {cancellingId === order.id
-                                                    ? <ActivityIndicator size="small" color="#ef4444" />
-                                                    : <>
-                                                        <Ionicons name="close-circle-outline" size={15} color="#ef4444" />
-                                                        <Typography style={[styles.actionBtnOutlineText, { color: '#ef4444' }]}>Cancel</Typography>
-                                                    </>
-                                                }
-                                            </TouchableOpacity>
-                                        )}
-
-                                        {/* Return — only when Delivered */}
-                                        {canReturn && (
-                                            <TouchableOpacity
-                                                style={[styles.actionBtnOutline, styles.actionBtnOrange]}
-                                                onPress={() => handleReturn(order.id)}
-                                                activeOpacity={0.7}
-                                            >
-                                                <Ionicons name="return-up-back-outline" size={15} color="#f97316" />
-                                                <Typography style={[styles.actionBtnOutlineText, { color: '#f97316' }]}>Return</Typography>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                )}
-                            </View>
-                        );
-                    })}
-                </ScrollView>
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
+                    removeClippedSubviews={true}
+                />
             )}
         </SafeAreaView>
     );

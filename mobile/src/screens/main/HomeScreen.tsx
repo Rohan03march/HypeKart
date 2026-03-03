@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { View, ScrollView, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput, FlatList } from 'react-native';
+import { Image } from 'expo-image';
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
@@ -12,6 +13,36 @@ import { supabase } from '../../lib/supabase';
 import { useWishlistStore } from '../../store/wishlistStore';
 import * as Location from 'expo-location';
 import { useAddressStore } from '../../store/addressStore';
+import { useCacheStore } from '../../store/cacheStore';
+
+const getPrimaryImage = (images: string[]) => {
+    if (images && images.length > 0) return images[0];
+    return 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop';
+};
+
+const ProductCard = memo(({ prod, onPress, onToggleWishlist, isWishlisted }: any) => (
+    <TouchableOpacity style={styles.productCard} onPress={onPress}>
+        <View style={styles.productImgWrapper}>
+            <Image
+                source={{ uri: getPrimaryImage(prod.images) }}
+                style={styles.productImg}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+            />
+            <View style={styles.productImgOverlay} />
+            <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); onToggleWishlist(prod); }}
+                style={styles.heartBtn}
+            >
+                <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+                <Ionicons name={isWishlisted ? "heart" : "heart-outline"} color={isWishlisted ? "#ef4444" : "#fff"} size={20} />
+            </TouchableOpacity>
+        </View>
+        <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
+        <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
+        <Typography style={styles.productPrice}>₹{Number(prod.base_price).toLocaleString('en-IN')}</Typography>
+    </TouchableOpacity>
+));
 
 const { width } = Dimensions.get('window');
 
@@ -96,6 +127,7 @@ export default function HomeScreen() {
 
     const { addresses, selectedAddressId, addAddress } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
+    const { getProducts, setProducts } = useCacheStore();
 
     useEffect(() => {
         fetchProducts();
@@ -222,8 +254,19 @@ export default function HomeScreen() {
         if (isRefresh) {
             setIsRefreshing(true);
         } else {
+            const cached = getProducts(activeCategory);
+            if (cached) {
+                // Assuming we stored an object combining both trending and newArrivals previously
+                // Let's modify caching to be robust. 
+                // We will cache a single payload: { trendingData, newData } under activeCategory
+                setTrendingProducts(cached[0]);
+                setNewArrivals(cached[1]);
+                setIsLoading(false);
+                return;
+            }
             setIsLoading(true);
         }
+
         try {
             const selectedCat = CATEGORIES.find(c => c.id === activeCategory);
             const isAll = !selectedCat || selectedCat.id === '1';
@@ -235,15 +278,8 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: true })
                 .limit(6);
 
-            if (!isAll) {
-                trendingQuery = trendingQuery.eq('category', selectedCat.name);
-            }
-
+            if (!isAll) { trendingQuery = trendingQuery.eq('category', selectedCat.name); }
             const { data: trendingData, error: trendingError } = await trendingQuery;
-
-            if (!trendingError && trendingData) {
-                setTrendingProducts(trendingData);
-            }
 
             // Fetch New Drops
             let newQuery = supabase
@@ -253,13 +289,14 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: false })
                 .limit(4);
 
-            if (!isAll) {
-                newQuery = newQuery.eq('category', selectedCat.name);
-            }
+            if (!isAll) { newQuery = newQuery.eq('category', selectedCat.name); }
             const { data: newData, error: newError } = await newQuery;
 
-            if (!newError && newData) {
-                setNewArrivals(newData);
+            if (!trendingError && trendingData) setTrendingProducts(trendingData);
+            if (!newError && newData) setNewArrivals(newData);
+
+            if (!trendingError && !newError) {
+                setProducts(activeCategory, [trendingData || [], newData || []]);
             }
         } catch (error) {
             console.error("Error fetching products:", error);
@@ -271,10 +308,19 @@ export default function HomeScreen() {
 
     const [activeIndex, setActiveIndex] = useState(0);
 
-    const getPrimaryImage = (images: string[]) => {
-        if (images && images.length > 0) return images[0];
-        return 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop';
-    };
+    const handleToggleWishlist = useCallback((prod: any) => {
+        toggle({
+            id: prod.id,
+            title: prod.title,
+            brand: prod.brand || 'HYPEKART',
+            price: prod.base_price,
+            image: getPrimaryImage(prod.images),
+            images: prod.images,
+            description: prod.description,
+            sizes: prod.sizes,
+            colors: prod.colors,
+        });
+    }, [toggle]);
 
     return (
         <View style={styles.container}>
@@ -467,52 +513,32 @@ export default function HomeScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={styles.horizontalScroll}
-                                contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 40, gap: 16 }}
-                                snapToInterval={200}
-                                decelerationRate="fast"
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
-                                ) : trendingProducts.map((prod) => (
-                                    <TouchableOpacity key={prod.id} style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { product: prod })}>
-                                        <View style={styles.productImgWrapper}>
-                                            <Image source={{ uri: getPrimaryImage(prod.images) }} style={styles.productImg} resizeMode="cover" />
-                                            <View style={styles.productImgOverlay} />
-                                            <TouchableOpacity
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
-                                                    toggle({
-                                                        id: prod.id,
-                                                        title: prod.title,
-                                                        brand: prod.brand || 'HYPEKART',
-                                                        price: prod.base_price,
-                                                        image: getPrimaryImage(prod.images),
-                                                        images: prod.images,
-                                                        description: prod.description,
-                                                        sizes: prod.sizes,
-                                                        colors: prod.colors,
-                                                    });
-                                                }}
-                                                style={styles.heartBtn}
-                                            >
-                                                <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-                                                <Ionicons
-                                                    name={isWishlisted(prod.id) ? 'heart' : 'heart-outline'}
-                                                    size={18}
-                                                    color={isWishlisted(prod.id) ? '#ff4b4b' : '#fff'}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                        <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
-                                        <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
-                                        <Typography style={styles.productPrice}>₹{prod.base_price?.toLocaleString('en-IN')}</Typography>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
+                            {isLoading ? (
+                                <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
+                            ) : (
+                                <FlatList
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    style={styles.horizontalScroll}
+                                    data={trendingProducts}
+                                    keyExtractor={item => item.id}
+                                    contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 40, gap: 16 }}
+                                    snapToInterval={216}
+                                    decelerationRate="fast"
+                                    initialNumToRender={3}
+                                    maxToRenderPerBatch={3}
+                                    windowSize={5}
+                                    removeClippedSubviews={true}
+                                    renderItem={({ item: prod }) => (
+                                        <ProductCard
+                                            prod={prod}
+                                            onPress={() => navigation.navigate('ProductDetails', { product: prod })}
+                                            onToggleWishlist={handleToggleWishlist}
+                                            isWishlisted={isWishlisted(prod.id)}
+                                        />
+                                    )}
+                                />
+                            )}
 
                             {/* New Arrivals Grid */}
                             <View style={styles.sectionHeader}>
@@ -528,7 +554,12 @@ export default function HomeScreen() {
                                 ) : newArrivals.map((item) => (
                                     <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
                                         <View style={styles.newGridImgWrapper}>
-                                            <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
+                                            <Image
+                                                source={{ uri: getPrimaryImage(item.images) }}
+                                                style={styles.productImg}
+                                                contentFit="cover"
+                                                cachePolicy="memory-disk"
+                                            />
                                             <TouchableOpacity
                                                 onPress={(e) => {
                                                     e.stopPropagation();

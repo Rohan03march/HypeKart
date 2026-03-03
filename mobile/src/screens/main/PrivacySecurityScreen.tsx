@@ -1,38 +1,137 @@
-import React from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-
-const SECTIONS = [
-    {
-        title: 'Privacy',
-        items: [
-            { icon: 'eye-outline', label: 'Data Usage', sub: 'How we use your data' },
-            { icon: 'share-social-outline', label: 'Third-Party Sharing', sub: 'We never sell your data' },
-            { icon: 'location-outline', label: 'Location Data', sub: 'Used only for delivery' },
-        ],
-    },
-    {
-        title: 'Security',
-        items: [
-            { icon: 'lock-closed-outline', label: 'Password & Authentication', sub: 'Managed securely via Clerk' },
-            { icon: 'phone-portrait-outline', label: 'Active Sessions', sub: 'Your current signed-in devices' },
-            { icon: 'shield-checkmark-outline', label: 'Two-Factor Authentication', sub: 'Enabled via Clerk dashboard' },
-        ],
-    },
-    {
-        title: 'Legal',
-        items: [
-            { icon: 'document-text-outline', label: 'Terms of Service', sub: 'Read our terms' },
-            { icon: 'document-lock-outline', label: 'Privacy Policy', sub: 'Read our policy' },
-        ],
-    },
-];
+import { useUser, useAuth, useSessionList, useSignIn } from '@clerk/clerk-expo';
 
 export default function PrivacySecurityScreen() {
     const navigation = useNavigation<any>();
+    const { user } = useUser();
+    const { sessionId, signOut } = useAuth();
+    const { sessions } = useSessionList();
+    const { signIn, setActive } = useSignIn();
+
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Password Change State
+    const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+
+    const handleManageSessions = () => {
+        if (!sessions) return;
+        const otherSessions = sessions.filter(s => s.id !== sessionId && s.status === 'active');
+
+        if (otherSessions.length === 0) {
+            Alert.alert('Active Sessions', 'You only have 1 active session (this device).');
+            return;
+        }
+
+        Alert.alert(
+            'Active Sessions',
+            `You have ${otherSessions.length} active session(s) on other devices.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Sign out all others',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            // @ts-ignore: Clerk types miss the .revoke() method natively on SessionResource but it exists on the client
+                            await Promise.all(otherSessions.map(s => s.revoke()));
+                            Alert.alert('Success', 'All other devices have been signed out.');
+                        } catch (e: any) {
+                            Alert.alert('Error', 'Failed to revoke sessions.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handlePasswordChangeRequest = () => {
+        setIsPasswordModalVisible(true);
+    };
+
+    const handleVerifyAndChangePassword = async () => {
+        if (!currentPassword || !newPassword) {
+            Alert.alert('Error', 'Please enter both your current password and your new password.');
+            return;
+        }
+        setIsVerifying(true);
+        try {
+            await user?.updatePassword({
+                currentPassword,
+                newPassword,
+                signOutOfOtherSessions: true,
+            });
+            Alert.alert('Success', 'Your password has been changed successfully.');
+            setIsPasswordModalVisible(false);
+            setCurrentPassword('');
+            setNewPassword('');
+        } catch (error: any) {
+            Alert.alert('Error', error.errors?.[0]?.message || 'Failed to update password. Please check your current password.');
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleForgotPasswordRedirect = () => {
+        Alert.alert(
+            'Reset Password via Email',
+            'To reset your password using an email verification code (OTP), you must be securely signed out of your current session. Would you like to sign out now?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign Out & Reset', style: 'destructive', onPress: async () => { await signOut(); } }
+            ]
+        );
+    };
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'Are you sure you want to permanently delete your account? This action cannot be undone and you will lose all order history, wishlisted items, and preferences.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Permanently',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (!user) return;
+                        setIsDeleting(true);
+                        try {
+                            await user.delete();
+                            // Clerk automatically handles sign out upon user deletion
+                        } catch (error: any) {
+                            Alert.alert('Error', error.errors?.[0]?.message || 'Failed to delete account. Please try again later.');
+                            setIsDeleting(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const SECTIONS = [
+        {
+            title: 'Privacy',
+            items: [
+                { icon: 'eye-outline', label: 'Data Usage', sub: 'How we use your data', onPress: () => Alert.alert('Privacy', 'We only collect data necessary to process your transactions.') },
+                { icon: 'location-outline', label: 'Location Data', sub: 'Used only for delivery', onPress: () => Alert.alert('Location', 'Used exclusively for calculating shipping targets.') },
+            ],
+        },
+        {
+            title: 'Security',
+            items: [
+                { icon: 'lock-closed-outline', label: 'Password & Authentication', sub: 'Change your password securely', onPress: handlePasswordChangeRequest },
+                { icon: 'phone-portrait-outline', label: 'Active Sessions', sub: 'View and manage signed-in devices', onPress: handleManageSessions },
+                { icon: 'shield-checkmark-outline', label: 'Two-Factor Authentication', sub: 'Enabled via security portal', onPress: () => Alert.alert('2FA', 'Multi-factor authentication is configured in your web security settings.') },
+            ],
+        },
+    ];
 
     return (
         <SafeAreaView style={styles.container}>
@@ -50,7 +149,7 @@ export default function PrivacySecurityScreen() {
                         <Typography style={styles.sectionLabel}>{section.title}</Typography>
                         <View style={styles.card}>
                             {section.items.map((item, i) => (
-                                <View key={item.label} style={[styles.row, i > 0 && styles.rowBorder]}>
+                                <TouchableOpacity key={item.label} onPress={item.onPress} activeOpacity={0.7} style={[styles.row, i > 0 && styles.rowBorder]}>
                                     <View style={styles.rowIcon}>
                                         <Ionicons name={item.icon as any} size={18} color="#000" />
                                     </View>
@@ -59,7 +158,7 @@ export default function PrivacySecurityScreen() {
                                         <Typography style={styles.rowSub}>{item.sub}</Typography>
                                     </View>
                                     <Ionicons name="chevron-forward" size={16} color="#ccc" />
-                                </View>
+                                </TouchableOpacity>
                             ))}
                         </View>
                     </View>
@@ -68,10 +167,72 @@ export default function PrivacySecurityScreen() {
                 <View style={styles.noteCard}>
                     <Ionicons name="shield-outline" size={20} color="#22c55e" />
                     <Typography style={styles.noteText}>
-                        Your account and payments are protected by Clerk Auth and Razorpay's PCI-DSS compliant infrastructure.
+                        Your account and payments are protected by bank-level, PCI-DSS compliant infrastructure.
                     </Typography>
                 </View>
+
+                {/* Danger Zone */}
+                <View style={[styles.section, { marginTop: 40 }]}>
+                    <Typography style={[styles.sectionLabel, { color: '#ef4444' }]}>DANGER ZONE</Typography>
+                    <TouchableOpacity
+                        onPress={handleDeleteAccount}
+                        disabled={isDeleting}
+                        activeOpacity={0.8}
+                        style={[styles.card, styles.deleteCard]}
+                    >
+                        {isDeleting ? (
+                            <ActivityIndicator color="#ef4444" />
+                        ) : (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                <Typography style={styles.deleteText}>Delete Account Permanently</Typography>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
+
+            {/* Password Change Modal */}
+            <Modal visible={isPasswordModalVisible} animationType="fade" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Typography style={styles.modalTitle}>Change Password</Typography>
+                        <Typography style={styles.modalSub}>
+                            To secure your account, please verify your current password before setting a new one.
+                        </Typography>
+
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Current Password"
+                            placeholderTextColor="#999"
+                            value={currentPassword}
+                            onChangeText={setCurrentPassword}
+                            secureTextEntry
+                        />
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="New Password"
+                            placeholderTextColor="#999"
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                            secureTextEntry
+                        />
+
+                        <TouchableOpacity onPress={handleForgotPasswordRedirect} style={{ marginBottom: 20 }}>
+                            <Typography style={{ color: '#000', fontSize: 13, textDecorationLine: 'underline', alignSelf: 'flex-end', fontWeight: '500' }}>Forgot Current Password?</Typography>
+                        </TouchableOpacity>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity onPress={() => setIsPasswordModalVisible(false)} style={styles.modalCancelBtn}>
+                                <Typography style={styles.modalCancelText}>Cancel</Typography>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleVerifyAndChangePassword} style={styles.modalConfirmBtn} disabled={isVerifying}>
+                                {isVerifying ? <ActivityIndicator color="#fff" /> : <Typography style={styles.modalConfirmText}>Save Password</Typography>}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -93,4 +254,16 @@ const styles = StyleSheet.create({
     rowSub: { fontSize: 12, color: '#999' },
     noteCard: { flexDirection: 'row', gap: 12, backgroundColor: '#f0fdf4', borderRadius: 16, padding: 16, alignItems: 'flex-start' },
     noteText: { fontSize: 13, color: '#555', lineHeight: 20, flex: 1 },
+    deleteCard: { backgroundColor: '#fee2e2', padding: 20, alignItems: 'center', justifyContent: 'center' },
+    deleteText: { color: '#ef4444', fontSize: 15, fontWeight: '600' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: '#fff', borderRadius: 24, padding: 24, width: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+    modalTitle: { fontSize: 20, fontWeight: '700', color: '#000', marginBottom: 8, textAlign: 'center' },
+    modalSub: { fontSize: 14, color: '#666', marginBottom: 24, textAlign: 'center', lineHeight: 22 },
+    modalInput: { backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#000', marginBottom: 16 },
+    modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    modalCancelBtn: { flex: 1, backgroundColor: '#f5f5f5', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 14 },
+    modalCancelText: { color: '#000', fontSize: 15, fontWeight: '600' },
+    modalConfirmBtn: { flex: 1, backgroundColor: '#000', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 14 },
+    modalConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

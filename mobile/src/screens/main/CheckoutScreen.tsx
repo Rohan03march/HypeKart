@@ -107,7 +107,7 @@ export default function CheckoutScreen() {
                 data.orderId,
                 data.amount,
                 selectedAddress.full_name,
-                user?.primaryEmailAddress?.emailAddress || '',
+                (user?.unsafeMetadata?.contact_email as string) || user?.primaryEmailAddress?.emailAddress || '',
                 selectedAddress.phone,
             ));
             setStep('payment');

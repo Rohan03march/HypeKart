@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, KeyboardAvoidingView, Platform, TouchableOpacity,
-    ScrollView, ActivityIndicator, StyleSheet, TextInput
+    ScrollView, ActivityIndicator, StyleSheet, TextInput, Modal, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignIn, useOAuth } from '@clerk/clerk-expo';
@@ -23,6 +23,14 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Forgot Password State
+    const [isForgotModalVisible, setIsForgotModalVisible] = useState(false);
+    const [forgotStep, setForgotStep] = useState<'email' | 'otp'>('email');
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [otpCode, setOtpCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
 
     const onSignIn = async () => {
         if (!isLoaded) return;
@@ -48,6 +56,50 @@ export default function LoginScreen() {
             setIsLoading(false);
         }
     }, [startOAuthFlow]);
+
+    const handleForgotPasswordStart = async () => {
+        if (!forgotEmail) {
+            Alert.alert('Required', 'Please enter your email address first.');
+            return;
+        }
+        setIsResetting(true);
+        try {
+            await signIn?.create({
+                strategy: 'reset_password_email_code',
+                identifier: forgotEmail,
+            });
+            setForgotStep('otp');
+        } catch (err: any) {
+            Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to initiate password reset.');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    const handleForgotPasswordVerify = async () => {
+        if (!otpCode || !newPassword) {
+            Alert.alert('Required', 'Please fill in both the OTP and your new password.');
+            return;
+        }
+        setIsResetting(true);
+        try {
+            const result = await signIn?.attemptFirstFactor({
+                strategy: 'reset_password_email_code',
+                code: otpCode,
+                password: newPassword,
+            });
+            if (result?.status === 'complete') {
+                await setActive?.({ session: result.createdSessionId });
+                setIsForgotModalVisible(false);
+            } else {
+                Alert.alert('Error', 'OTP verification failed or is incomplete.');
+            }
+        } catch (err: any) {
+            Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to change password. Ensure the OTP is correct.');
+        } finally {
+            setIsResetting(false);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -90,7 +142,7 @@ export default function LoginScreen() {
                             />
                         </View>
 
-                        <TouchableOpacity style={styles.forgotPassword}>
+                        <TouchableOpacity style={styles.forgotPassword} onPress={() => { setForgotStep('email'); setForgotEmail(email); setIsForgotModalVisible(true); }}>
                             <Typography style={styles.forgotPasswordText}>
                                 Forgot Password?
                             </Typography>
@@ -128,6 +180,69 @@ export default function LoginScreen() {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Forgot Password Flow Modal */}
+            <Modal visible={isForgotModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsForgotModalVisible(false)}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Typography style={styles.modalTitle}>Reset Password</Typography>
+                        <TouchableOpacity onPress={() => setIsForgotModalVisible(false)} style={styles.closeBtn}>
+                            <Ionicons name="close" size={24} color="#000" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView contentContainerStyle={{ padding: 24 }}>
+                        {forgotStep === 'email' ? (
+                            <>
+                                <Typography style={styles.modalSub}>
+                                    Enter your registered email address and we will send a 6-digit OTP to verify your identity.
+                                </Typography>
+                                <Typography style={styles.inputLabel}>Email Address</Typography>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    value={forgotEmail}
+                                    onChangeText={setForgotEmail}
+                                    placeholder="your@email.com"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                                <TouchableOpacity style={styles.primaryBtn} onPress={handleForgotPasswordStart} disabled={isResetting}>
+                                    {isResetting ? <ActivityIndicator color="#fff" /> : <Typography style={styles.primaryBtnText}>Send OTP</Typography>}
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <Typography style={styles.modalSub}>
+                                    We've sent an OTP to {forgotEmail}. Enter it below along with your new password.
+                                </Typography>
+                                <Typography style={styles.inputLabel}>6-Digit OTP</Typography>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    value={otpCode}
+                                    onChangeText={setOtpCode}
+                                    placeholder="000000"
+                                    keyboardType="number-pad"
+                                />
+                                <Typography style={styles.inputLabel}>New Password</Typography>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    value={newPassword}
+                                    onChangeText={setNewPassword}
+                                    placeholder="Enter secure password"
+                                    secureTextEntry
+                                />
+                                <TouchableOpacity style={styles.primaryBtn} onPress={handleForgotPasswordVerify} disabled={isResetting}>
+                                    {isResetting ? <ActivityIndicator color="#fff" /> : <Typography style={styles.primaryBtnText}>Change Password & Log In</Typography>}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity onPress={() => setForgotStep('email')} style={{ marginTop: 24, alignSelf: 'center' }}>
+                                    <Typography style={{ color: '#000', fontSize: 13, fontWeight: '600' }}>Change Email Address</Typography>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </ScrollView>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -246,5 +361,15 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#000000',
         textDecorationLine: 'underline', // Classic editorial link style
-    }
+    },
+    // Modal Styles
+    modalContainer: { flex: 1, backgroundColor: '#fff' },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+    modalTitle: { fontSize: 20, fontWeight: '600', color: '#000' },
+    closeBtn: { padding: 4 },
+    modalSub: { fontSize: 14, color: '#666', lineHeight: 22, marginBottom: 24 },
+    inputLabel: { fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+    modalInput: { backgroundColor: '#fcfcfc', borderWidth: 1, borderColor: '#eaeaea', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#000', marginBottom: 20 },
+    primaryBtn: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+    primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
 });

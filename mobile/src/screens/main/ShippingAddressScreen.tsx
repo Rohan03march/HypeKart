@@ -19,7 +19,7 @@ export default function ShippingAddressScreen() {
     // Form state
     const [form, setForm] = useState({
         full_name: user?.fullName || '',
-        phone: '',
+        phone: (user?.unsafeMetadata?.contact_phone as string) || user?.primaryPhoneNumber?.phoneNumber || '',
         address: '',
         city: '',
         state: '',
@@ -89,7 +89,7 @@ export default function ShippingAddressScreen() {
         setAddModalVisible(false);
         setForm({
             full_name: user?.fullName || '',
-            phone: '',
+            phone: (user?.unsafeMetadata?.contact_phone as string) || user?.primaryPhoneNumber?.phoneNumber || '',
             address: '',
             city: '',
             state: '',
