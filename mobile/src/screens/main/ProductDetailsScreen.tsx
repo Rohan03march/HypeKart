@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, ScrollView, TouchableOpacity, Image,
-    Dimensions, StyleSheet, StatusBar
+    Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,6 +62,7 @@ export default function ProductDetailsScreen() {
     const [selectedSize, setSelectedSize] = useState(sizeOptions[0]);
     const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
     const [added, setAdded] = useState(false);
+    const [isSizeGuideVisible, setIsSizeGuideVisible] = useState(false);
     const { toggle, isWishlisted } = useWishlistStore();
     const isFavorite = isWishlisted(productId);
     const insets = useSafeAreaInsets();
@@ -191,7 +192,7 @@ export default function ProductDetailsScreen() {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Typography style={styles.sectionLabel}>SIZE</Typography>
-                                <TouchableOpacity>
+                                <TouchableOpacity onPress={() => setIsSizeGuideVisible(true)}>
                                     <Typography style={styles.guideLink}>Size Guide →</Typography>
                                 </TouchableOpacity>
                             </View>
@@ -252,6 +253,52 @@ export default function ProductDetailsScreen() {
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
+
+            {/* Size Guide Modal */}
+            <Modal
+                visible={isSizeGuideVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setIsSizeGuideVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setIsSizeGuideVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <Typography style={styles.modalTitle}>Size Guide</Typography>
+                                    <TouchableOpacity onPress={() => setIsSizeGuideVisible(false)} style={styles.closeBtn}>
+                                        <Ionicons name="close" size={24} color="#000" />
+                                    </TouchableOpacity>
+                                </View>
+                                <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+                                    <View style={styles.tableRowHeader}>
+                                        <Typography style={styles.tableCellHeader}>Size</Typography>
+                                        <Typography style={styles.tableCellHeader}>Chest (in)</Typography>
+                                        <Typography style={styles.tableCellHeader}>Length (in)</Typography>
+                                    </View>
+                                    {[
+                                        { size: 'S', chest: '36-38', length: '27' },
+                                        { size: 'M', chest: '38-40', length: '28' },
+                                        { size: 'L', chest: '40-42', length: '29' },
+                                        { size: 'XL', chest: '42-44', length: '30' },
+                                        { size: 'XXL', chest: '44-46', length: '31' }
+                                    ].map((row, i) => (
+                                        <View key={i} style={styles.tableRow}>
+                                            <Typography style={styles.tableCell}>{row.size}</Typography>
+                                            <Typography style={styles.tableCell}>{row.chest}</Typography>
+                                            <Typography style={styles.tableCell}>{row.length}</Typography>
+                                        </View>
+                                    ))}
+                                    <Typography style={styles.modalNote}>
+                                        * Fit may vary depending on style and brand. Please allow 1-2 inch tolerances due to manual measurement.
+                                    </Typography>
+                                </ScrollView>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 }
@@ -479,5 +526,70 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#fff',
         letterSpacing: 0.4,
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'transparent',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 40,
+        maxHeight: '70%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#000',
+    },
+    closeBtn: {
+        padding: 4,
+    },
+    modalScroll: {
+        marginTop: 10,
+    },
+    tableRowHeader: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        paddingBottom: 12,
+        marginBottom: 12,
+    },
+    tableCellHeader: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#666',
+        textTransform: 'uppercase',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f5f5f5',
+    },
+    tableCell: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#000',
+    },
+    modalNote: {
+        fontSize: 13,
+        color: '#888',
+        marginTop: 24,
+        lineHeight: 20,
     },
 });
