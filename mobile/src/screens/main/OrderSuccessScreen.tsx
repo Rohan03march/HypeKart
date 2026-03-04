@@ -5,14 +5,22 @@ import { Typography } from '../../components/ui/Typography';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function OrderSuccessScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { orderId, paymentId } = route.params || {};
 
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
             <View style={styles.content}>
                 {/* Success Icon */}
                 <View style={styles.iconCircle}>
@@ -20,25 +28,25 @@ export default function OrderSuccessScreen() {
                     <Ionicons name="checkmark" size={52} color="#fff" />
                 </View>
 
-                <Typography style={styles.title}>Order Placed!</Typography>
-                <Typography style={styles.subtitle}>
+                <Typography style={[styles.title, { color: textColor }]}>Order Placed!</Typography>
+                <Typography style={[styles.subtitle, { color: subtextColor }]}>
                     Your order has been confirmed and is being placed.
                 </Typography>
 
                 {/* Order Info */}
-                <View style={styles.infoCard}>
+                <View style={[styles.infoCard, { backgroundColor: cardBgColor }]}>
                     {orderId && (
                         <View style={styles.infoRow}>
                             <Typography style={styles.infoLabel}>Order ID</Typography>
-                            <Typography style={styles.infoValue} numberOfLines={1}>
+                            <Typography style={[styles.infoValue, { color: textColor }]} numberOfLines={1}>
                                 {String(orderId).split('-')[0].toUpperCase()}
                             </Typography>
                         </View>
                     )}
                     {paymentId && (
-                        <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: '#f0f0f0' }]}>
+                        <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: borderColor }]}>
                             <Typography style={styles.infoLabel}>Payment ID</Typography>
-                            <Typography style={styles.infoValue} numberOfLines={1}>{paymentId}</Typography>
+                            <Typography style={[styles.infoValue, { color: textColor }]} numberOfLines={1}>{paymentId}</Typography>
                         </View>
                     )}
                 </View>

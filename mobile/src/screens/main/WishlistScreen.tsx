@@ -6,19 +6,28 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useWishlistStore } from '../../store/wishlistStore';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function WishlistScreen() {
     const navigation = useNavigation<any>();
     const { items, removeItem } = useWishlistStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const imgBgColor = isDarkMode ? '#333' : '#f5f5f5';
+    const removeBg = isDarkMode ? '#3a1a1a' : '#fff5f5';
 
     if (items.length === 0) {
         return (
-            <SafeAreaView style={styles.emptyContainer}>
-                <View style={styles.emptyIconContainer}>
-                    <Ionicons name="heart-outline" size={48} color="#000" />
+            <SafeAreaView style={[styles.emptyContainer, { backgroundColor: bgColor }]}>
+                <View style={[styles.emptyIconContainer, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="heart-outline" size={48} color={textColor} />
                 </View>
-                <Typography style={styles.emptyTitle}>No saved items</Typography>
-                <Typography style={styles.emptySubtitle}>
+                <Typography style={[styles.emptyTitle, { color: textColor }]}>No saved items</Typography>
+                <Typography style={[styles.emptySubtitle, { color: subtextColor }]}>
                     Curate your personal collection. Tap the heart icon on any product to save it here.
                 </Typography>
                 <TouchableOpacity
@@ -40,18 +49,18 @@ export default function WishlistScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
             {/* Header */}
-            <View style={styles.header}>
-                <Typography style={styles.headerTitle}>Wishlist</Typography>
-                <Typography style={styles.headerSubtitle}>{items.length} items</Typography>
+            <View style={[styles.header, { backgroundColor: bgColor }]}>
+                <Typography style={[styles.headerTitle, { color: textColor }]}>Wishlist</Typography>
+                <Typography style={[styles.headerSubtitle, { color: subtextColor }]}>{items.length} items</Typography>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 20 }}>
                 {items.map((item) => (
                     <TouchableOpacity
                         key={item.id}
-                        style={styles.wishlistCard}
+                        style={[styles.wishlistCard, { backgroundColor: cardBgColor }]}
                         activeOpacity={0.85}
                         onPress={() => navigation.navigate('ProductDetails', {
                             product: {
@@ -66,7 +75,7 @@ export default function WishlistScreen() {
                             }
                         })}
                     >
-                        <View style={styles.imageContainer}>
+                        <View style={[styles.imageContainer, { backgroundColor: imgBgColor }]}>
                             <Image
                                 source={{ uri: item.image }}
                                 style={styles.itemImage}
@@ -76,15 +85,15 @@ export default function WishlistScreen() {
 
                         <View style={styles.itemDetails}>
                             <View>
-                                <Typography style={styles.brandText}>{item.brand}</Typography>
-                                <Typography style={styles.titleText} numberOfLines={2}>{item.title}</Typography>
+                                <Typography style={[styles.brandText, { color: subtextColor }]}>{item.brand}</Typography>
+                                <Typography style={[styles.titleText, { color: textColor }]} numberOfLines={2}>{item.title}</Typography>
                             </View>
 
                             <View style={styles.priceRow}>
-                                <Typography style={styles.priceText}>₹{item.price.toLocaleString('en-IN')}</Typography>
+                                <Typography style={[styles.priceText, { color: textColor }]}>₹{item.price.toLocaleString('en-IN')}</Typography>
                                 <TouchableOpacity
                                     onPress={() => removeItem(item.id)}
-                                    style={styles.removeBtn}
+                                    style={[styles.removeBtn, { backgroundColor: removeBg }]}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
                                     <Ionicons name="heart" size={20} color="#ff4b4b" />

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { BlurView } from 'expo-blur';
 import { useWishlistStore } from '../../store/wishlistStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +20,13 @@ export default function CatalogScreen() {
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toggle, isWishlisted } = useWishlistStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#999';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#f5f5f5';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
 
     useEffect(() => {
         fetchProducts();
@@ -61,24 +69,24 @@ export default function CatalogScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
             <SafeAreaView style={{ flex: 1 }}>
-                <View style={styles.header}>
+                <View style={[styles.header, { borderBottomColor: borderColor }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#000" />
+                        <Ionicons name="arrow-back" size={24} color={textColor} />
                     </TouchableOpacity>
-                    <Typography style={styles.headerTitle}>{title}</Typography>
+                    <Typography style={[styles.headerTitle, { color: textColor }]}>{title}</Typography>
                     <View style={{ width: 44 }} />
                 </View>
 
                 {isLoading ? (
-                    <ActivityIndicator color="#000" style={{ flex: 1 }} />
+                    <ActivityIndicator color={textColor} style={{ flex: 1 }} />
                 ) : (
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                         <View style={styles.grid}>
                             {products.map((item) => (
                                 <TouchableOpacity key={item.id} style={styles.gridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                    <View style={styles.imgWrapper}>
+                                    <View style={[styles.imgWrapper, { backgroundColor: cardBgColor }]}>
                                         <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.img} resizeMode="cover" />
                                         <TouchableOpacity
                                             onPress={(e) => {
@@ -103,9 +111,9 @@ export default function CatalogScreen() {
                                         </TouchableOpacity>
                                     </View>
                                     <View style={styles.info}>
-                                        <Typography style={styles.brand}>{item.brand || 'HYPEKART'}</Typography>
-                                        <Typography style={styles.itemTitle} numberOfLines={1}>{item.title}</Typography>
-                                        <Typography style={styles.price}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                        <Typography style={[styles.brand, { color: subtextColor }]}>{item.brand || 'HYPEKART'}</Typography>
+                                        <Typography style={[styles.itemTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                        <Typography style={[styles.price, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
                                     </View>
                                 </TouchableOpacity>
                             ))}

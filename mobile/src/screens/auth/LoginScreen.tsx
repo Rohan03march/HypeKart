@@ -11,6 +11,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useWarmUpBrowser } from '../../hooks/useWarmUpBrowser';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeStore } from '../../store/themeStore';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -23,6 +24,7 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     // Forgot Password State
     const [isForgotModalVisible, setIsForgotModalVisible] = useState(false);
@@ -102,8 +104,8 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#FFFFFF' }]} edges={['top', 'bottom']}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} backgroundColor="transparent" translucent />
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView
@@ -113,13 +115,13 @@ export default function LoginScreen() {
                 >
                     {/* Editorial Top Branding */}
                     <View style={styles.headerContainer}>
-                        <Typography style={styles.logoText}>H Y P E K A R T</Typography>
+                        <Typography style={[styles.logoText, { color: isDarkMode ? '#ffffff' : '#000000' }]}>H Y P E K A R T</Typography>
                         <Typography style={styles.greetingText}>SIGN IN TO CONTINUE</Typography>
                     </View>
 
                     {/* Elegant Minimalist Form */}
                     <View style={styles.formContainer}>
-                        <View style={styles.inputContainer}>
+                        <View style={[styles.inputContainer, { borderColor: isDarkMode ? '#333' : '#EAEAEA' }]}>
                             <TextInput
                                 autoCapitalize="none"
                                 value={email}
@@ -127,18 +129,18 @@ export default function LoginScreen() {
                                 placeholderTextColor="#999999"
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
-                                style={styles.input}
+                                style={[styles.input, { color: isDarkMode ? '#ffffff' : '#000000' }]}
                             />
                         </View>
 
-                        <View style={styles.inputContainer}>
+                        <View style={[styles.inputContainer, { borderColor: isDarkMode ? '#333' : '#EAEAEA' }]}>
                             <TextInput
                                 value={password}
                                 placeholder="Password"
                                 placeholderTextColor="#999999"
                                 secureTextEntry
                                 onChangeText={setPassword}
-                                style={styles.input}
+                                style={[styles.input, { color: isDarkMode ? '#ffffff' : '#000000' }]}
                             />
                         </View>
 
@@ -149,11 +151,11 @@ export default function LoginScreen() {
                         </TouchableOpacity>
 
                         {/* Authoritative Black Button */}
-                        <TouchableOpacity style={styles.primaryButton} onPress={onSignIn} activeOpacity={0.8} disabled={isLoading}>
+                        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: isDarkMode ? '#ffffff' : '#000000' }]} onPress={onSignIn} activeOpacity={0.8} disabled={isLoading}>
                             {isLoading ? (
-                                <ActivityIndicator color="#ffffff" />
+                                <ActivityIndicator color={isDarkMode ? '#000000' : '#ffffff'} />
                             ) : (
-                                <Typography style={styles.buttonText}>SIGN IN</Typography>
+                                <Typography style={[styles.buttonText, { color: isDarkMode ? '#000000' : '#ffffff' }]}>SIGN IN</Typography>
                             )}
                         </TouchableOpacity>
 
@@ -165,9 +167,9 @@ export default function LoginScreen() {
                         </View>
 
                         {/* Clean Google Button */}
-                        <TouchableOpacity onPress={onGoogle} activeOpacity={0.8} disabled={isLoading} style={styles.socialButton}>
-                            <Ionicons name="logo-google" size={18} color="#000000" />
-                            <Typography style={styles.socialButtonText}>Continue with Google</Typography>
+                        <TouchableOpacity onPress={onGoogle} activeOpacity={0.8} disabled={isLoading} style={[styles.socialButton, { backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff', borderColor: isDarkMode ? '#333' : '#EAEAEA' }]}>
+                            <Ionicons name="logo-google" size={18} color={isDarkMode ? '#ffffff' : '#000000'} />
+                            <Typography style={[styles.socialButtonText, { color: isDarkMode ? '#ffffff' : '#000000' }]}>Continue with Google</Typography>
                         </TouchableOpacity>
                     </View>
 
@@ -175,7 +177,7 @@ export default function LoginScreen() {
                     <View style={styles.footer}>
                         <Typography style={{ color: '#888888', fontSize: 13, fontWeight: '500' }}>Don't have an account? </Typography>
                         <TouchableOpacity onPress={() => navigation.navigate('SignUp')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Typography style={styles.footerLinkText}>Create Account</Typography>
+                            <Typography style={[styles.footerLinkText, { color: isDarkMode ? '#ffffff' : '#000000' }]}>Create Account</Typography>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -183,11 +185,11 @@ export default function LoginScreen() {
 
             {/* Forgot Password Flow Modal */}
             <Modal visible={isForgotModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsForgotModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Typography style={styles.modalTitle}>Reset Password</Typography>
+                <View style={[styles.modalContainer, { backgroundColor: isDarkMode ? '#121212' : '#ffffff' }]}>
+                    <View style={[styles.modalHeader, { borderBottomColor: isDarkMode ? '#333' : '#f0f0f0' }]}>
+                        <Typography style={[styles.modalTitle, { color: isDarkMode ? '#ffffff' : '#000000' }]}>Reset Password</Typography>
                         <TouchableOpacity onPress={() => setIsForgotModalVisible(false)} style={styles.closeBtn}>
-                            <Ionicons name="close" size={24} color="#000" />
+                            <Ionicons name="close" size={24} color={isDarkMode ? '#ffffff' : '#000000'} />
                         </TouchableOpacity>
                     </View>
 
@@ -199,15 +201,16 @@ export default function LoginScreen() {
                                 </Typography>
                                 <Typography style={styles.inputLabel}>Email Address</Typography>
                                 <TextInput
-                                    style={styles.modalInput}
+                                    style={[styles.modalInput, { backgroundColor: isDarkMode ? '#1e1e1e' : '#fcfcfc', borderColor: isDarkMode ? '#333' : '#eaeaea', color: isDarkMode ? '#ffffff' : '#000000' }]}
                                     value={forgotEmail}
                                     onChangeText={setForgotEmail}
                                     placeholder="your@email.com"
+                                    placeholderTextColor="#999"
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                 />
-                                <TouchableOpacity style={styles.primaryBtn} onPress={handleForgotPasswordStart} disabled={isResetting}>
-                                    {isResetting ? <ActivityIndicator color="#fff" /> : <Typography style={styles.primaryBtnText}>Send OTP</Typography>}
+                                <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: isDarkMode ? '#ffffff' : '#000000' }]} onPress={handleForgotPasswordStart} disabled={isResetting}>
+                                    {isResetting ? <ActivityIndicator color={isDarkMode ? '#000000' : '#ffffff'} /> : <Typography style={[styles.primaryBtnText, { color: isDarkMode ? '#000000' : '#ffffff' }]}>Send OTP</Typography>}
                                 </TouchableOpacity>
                             </>
                         ) : (
@@ -217,26 +220,28 @@ export default function LoginScreen() {
                                 </Typography>
                                 <Typography style={styles.inputLabel}>6-Digit OTP</Typography>
                                 <TextInput
-                                    style={styles.modalInput}
+                                    style={[styles.modalInput, { backgroundColor: isDarkMode ? '#1e1e1e' : '#fcfcfc', borderColor: isDarkMode ? '#333' : '#eaeaea', color: isDarkMode ? '#ffffff' : '#000000' }]}
                                     value={otpCode}
                                     onChangeText={setOtpCode}
+                                    placeholderTextColor="#999"
                                     placeholder="000000"
                                     keyboardType="number-pad"
                                 />
                                 <Typography style={styles.inputLabel}>New Password</Typography>
                                 <TextInput
-                                    style={styles.modalInput}
+                                    style={[styles.modalInput, { backgroundColor: isDarkMode ? '#1e1e1e' : '#fcfcfc', borderColor: isDarkMode ? '#333' : '#eaeaea', color: isDarkMode ? '#ffffff' : '#000000' }]}
                                     value={newPassword}
                                     onChangeText={setNewPassword}
+                                    placeholderTextColor="#999"
                                     placeholder="Enter secure password"
                                     secureTextEntry
                                 />
-                                <TouchableOpacity style={styles.primaryBtn} onPress={handleForgotPasswordVerify} disabled={isResetting}>
-                                    {isResetting ? <ActivityIndicator color="#fff" /> : <Typography style={styles.primaryBtnText}>Change Password & Log In</Typography>}
+                                <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: isDarkMode ? '#ffffff' : '#000000' }]} onPress={handleForgotPasswordVerify} disabled={isResetting}>
+                                    {isResetting ? <ActivityIndicator color={isDarkMode ? '#000000' : '#ffffff'} /> : <Typography style={[styles.primaryBtnText, { color: isDarkMode ? '#000000' : '#ffffff' }]}>Change Password & Log In</Typography>}
                                 </TouchableOpacity>
 
                                 <TouchableOpacity onPress={() => setForgotStep('email')} style={{ marginTop: 24, alignSelf: 'center' }}>
-                                    <Typography style={{ color: '#000', fontSize: 13, fontWeight: '600' }}>Change Email Address</Typography>
+                                    <Typography style={{ color: isDarkMode ? '#ffffff' : '#000000', fontSize: 13, fontWeight: '600' }}>Change Email Address</Typography>
                                 </TouchableOpacity>
                             </>
                         )}

@@ -42,9 +42,12 @@ const TAB_ICONS: Record<TabName, { active: React.ComponentProps<typeof Ionicons>
     Profile: { active: 'person', inactive: 'person-outline' },
 };
 
+import { useThemeStore } from '../store/themeStore';
+
 function CustomTabBar({ state, navigation }: any) {
     const getCartCount = useCartStore(s => s.getCartCount);
     const cartCount = getCartCount();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     // Dynamic width calculation for the sliding indicator
     const tabWidth = (width - 48 - 16) / state.routes.length; // 48 is container padding, 16 is inner padding
@@ -65,13 +68,24 @@ function CustomTabBar({ state, navigation }: any) {
         };
     });
 
+    // Theme Colors
+    const blurTint = isDarkMode ? "dark" : "light";
+    const barBgColor = isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)';
+    const barBorderColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.6)';
+    const activeBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const iconActiveColor = isDarkMode ? '#fff' : '#000000';
+    const iconInactiveColor = isDarkMode ? '#666' : '#8e9094';
+    const badgeBg = isDarkMode ? '#fff' : '#000';
+    const badgeBorder = isDarkMode ? '#000' : '#fff';
+    const badgeText = isDarkMode ? '#000' : 'white';
+
     return (
         <View style={styles.floatingContainer}>
-            <View style={styles.tabBarInner}>
-                <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={[styles.tabBarInner, { backgroundColor: barBgColor, borderColor: barBorderColor }]}>
+                <BlurView intensity={70} tint={blurTint} style={StyleSheet.absoluteFill} />
 
                 {/* The sliding active background */}
-                <Animated.View style={[styles.activeBackground, { width: tabWidth }, activeStyle]} />
+                <Animated.View style={[styles.activeBackground, { width: tabWidth, backgroundColor: activeBgColor }, activeStyle]} />
 
                 <View style={styles.tabBarContent}>
                     {state.routes.map((route: any, index: number) => {
@@ -95,11 +109,11 @@ function CustomTabBar({ state, navigation }: any) {
                                     <Ionicons
                                         name={iconName}
                                         size={22}
-                                        color={isFocused ? '#000000' : '#8e9094'}
+                                        color={isFocused ? iconActiveColor : iconInactiveColor}
                                     />
                                     {name === 'Cart' && cartCount > 0 && (
-                                        <View style={styles.cartBadge}>
-                                            <Typography style={styles.cartBadgeText}>
+                                        <View style={[styles.cartBadge, { backgroundColor: badgeBg, borderColor: badgeBorder }]}>
+                                            <Typography style={[styles.cartBadgeText, { color: badgeText }]}>
                                                 {cartCount > 9 ? '9+' : cartCount}
                                             </Typography>
                                         </View>

@@ -8,6 +8,7 @@ import { useSignUp } from '@clerk/clerk-expo';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function SignUpScreen() {
     const { isLoaded, signUp, setActive } = useSignUp();
@@ -18,6 +19,8 @@ export default function SignUpScreen() {
     const [pending, setPending] = useState(false);
     const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     const onSignUp = async () => {
         if (!isLoaded) return;
@@ -51,8 +54,8 @@ export default function SignUpScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#FFFFFF' }]} edges={['top', 'bottom']}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} backgroundColor="transparent" translucent />
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView
@@ -64,13 +67,13 @@ export default function SignUpScreen() {
                         <>
                             {/* Editorial Top Branding */}
                             <View style={styles.headerContainer}>
-                                <Typography style={styles.logoText}>H Y P E K A R T</Typography>
+                                <Typography style={[styles.logoText, { color: isDarkMode ? '#ffffff' : '#000000' }]}>H Y P E K A R T</Typography>
                                 <Typography style={styles.greetingText}>CREATE AN ACCOUNT</Typography>
                             </View>
 
                             {/* Elegant Minimalist Form */}
                             <View style={styles.formContainer}>
-                                <View style={styles.inputContainer}>
+                                <View style={[styles.inputContainer, { borderColor: isDarkMode ? '#333' : '#EAEAEA' }]}>
                                     <TextInput
                                         autoCapitalize="none"
                                         value={email}
@@ -78,18 +81,18 @@ export default function SignUpScreen() {
                                         placeholderTextColor="#999999"
                                         onChangeText={setEmail}
                                         keyboardType="email-address"
-                                        style={styles.input}
+                                        style={[styles.input, { color: isDarkMode ? '#ffffff' : '#000000' }]}
                                     />
                                 </View>
 
-                                <View style={styles.inputContainer}>
+                                <View style={[styles.inputContainer, { borderColor: isDarkMode ? '#333' : '#EAEAEA' }]}>
                                     <TextInput
                                         value={password}
                                         placeholder="Password"
                                         placeholderTextColor="#999999"
                                         secureTextEntry
                                         onChangeText={setPassword}
-                                        style={styles.input}
+                                        style={[styles.input, { color: isDarkMode ? '#ffffff' : '#000000' }]}
                                     />
                                 </View>
 
@@ -98,11 +101,11 @@ export default function SignUpScreen() {
                                 </Typography>
 
                                 {/* Authoritative Black Button */}
-                                <TouchableOpacity style={styles.primaryButton} onPress={onSignUp} activeOpacity={0.8} disabled={isLoading}>
+                                <TouchableOpacity style={[styles.primaryButton, { backgroundColor: isDarkMode ? '#ffffff' : '#000000' }]} onPress={onSignUp} activeOpacity={0.8} disabled={isLoading}>
                                     {isLoading ? (
-                                        <ActivityIndicator color="#ffffff" />
+                                        <ActivityIndicator color={isDarkMode ? '#000000' : '#ffffff'} />
                                     ) : (
-                                        <Typography style={styles.buttonText}>CONTINUE</Typography>
+                                        <Typography style={[styles.buttonText, { color: isDarkMode ? '#000000' : '#ffffff' }]}>CONTINUE</Typography>
                                     )}
                                 </TouchableOpacity>
                             </View>
@@ -110,7 +113,7 @@ export default function SignUpScreen() {
                             <View style={styles.footer}>
                                 <Typography style={{ color: '#888888', fontSize: 13, fontWeight: '500' }}>Already have an account? </Typography>
                                 <TouchableOpacity onPress={() => navigation.navigate('Login')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                    <Typography style={styles.footerLinkText}>Sign In</Typography>
+                                    <Typography style={[styles.footerLinkText, { color: isDarkMode ? '#ffffff' : '#000' }]}>Sign In</Typography>
                                 </TouchableOpacity>
                             </View>
                         </>
@@ -118,33 +121,33 @@ export default function SignUpScreen() {
                         <>
                             {/* OTP Verification UI - Editorial Style */}
                             <View style={[styles.headerContainer, { marginTop: 40 }]}>
-                                <Typography style={styles.logoText}>V E R I F Y</Typography>
+                                <Typography style={[styles.logoText, { color: isDarkMode ? '#ffffff' : '#000' }]}>V E R I F Y</Typography>
                             </View>
 
                             <View style={styles.formContainer}>
                                 <Typography style={styles.verificationDesc}>
                                     ENTER THE CODE SENT TO:{'\n'}
-                                    <Typography style={{ color: '#000000', fontWeight: '700', letterSpacing: 1 }}>{email}</Typography>
+                                    <Typography style={{ color: isDarkMode ? '#ffffff' : '#000', fontWeight: '700', letterSpacing: 1 }}>{email}</Typography>
                                 </Typography>
 
-                                <View style={[styles.inputContainer, { borderBottomWidth: 2, borderColor: '#000000', height: 72 }]}>
+                                <View style={[styles.inputContainer, { borderBottomWidth: 2, borderColor: isDarkMode ? '#ffffff' : '#000', height: 72 }]}>
                                     <TextInput
                                         value={code}
                                         placeholder="000 000"
-                                        placeholderTextColor="#EAEAEA"
+                                        placeholderTextColor={isDarkMode ? '#555' : "#EAEAEA"}
                                         onChangeText={setCode}
                                         keyboardType="number-pad"
-                                        style={[styles.input, { textAlign: 'center', fontSize: 28, letterSpacing: 16, fontWeight: '600', color: '#000000' }]}
+                                        style={[styles.input, { textAlign: 'center', fontSize: 28, letterSpacing: 16, fontWeight: '600', color: isDarkMode ? '#ffffff' : '#000' }]}
                                         autoFocus
                                         maxLength={6}
                                     />
                                 </View>
 
-                                <TouchableOpacity style={[styles.primaryButton, { marginTop: 48 }]} onPress={onVerify} activeOpacity={0.8} disabled={isLoading}>
+                                <TouchableOpacity style={[styles.primaryButton, { marginTop: 48, backgroundColor: isDarkMode ? '#ffffff' : '#000000' }]} onPress={onVerify} activeOpacity={0.8} disabled={isLoading}>
                                     {isLoading ? (
-                                        <ActivityIndicator color="#ffffff" />
+                                        <ActivityIndicator color={isDarkMode ? '#000' : '#ffffff'} />
                                     ) : (
-                                        <Typography style={styles.buttonText}>VERIFY ACCOUNT</Typography>
+                                        <Typography style={[styles.buttonText, { color: isDarkMode ? '#000' : '#ffffff' }]}>VERIFY ACCOUNT</Typography>
                                     )}
                                 </TouchableOpacity>
 

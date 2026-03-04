@@ -7,11 +7,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@clerk/clerk-expo';
 import { useAddressStore, Address } from '../../store/addressStore';
 import * as Location from 'expo-location';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function ShippingAddressScreen() {
     const navigation = useNavigation<any>();
     const { user } = useUser();
     const { addresses, selectedAddressId, selectAddress, addAddress, removeAddress } = useAddressStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#999';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+    const modalBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const inputBg = isDarkMode ? '#333' : '#fafafa';
 
     const [isAddModalVisible, setAddModalVisible] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
@@ -98,57 +108,57 @@ export default function ShippingAddressScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-                    <Ionicons name="arrow-back" size={20} color="#000" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.iconBtn, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="arrow-back" size={20} color={textColor} />
                 </TouchableOpacity>
-                <Typography style={styles.headerTitle}>Delivery Address</Typography>
-                <TouchableOpacity onPress={() => setAddModalVisible(true)} style={styles.iconBtn}>
-                    <Ionicons name="add" size={24} color="#000" />
+                <Typography style={[styles.headerTitle, { color: textColor }]}>Delivery Address</Typography>
+                <TouchableOpacity onPress={() => setAddModalVisible(true)} style={[styles.iconBtn, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="add" size={24} color={textColor} />
                 </TouchableOpacity>
             </View>
 
             {addresses.length === 0 ? (
                 <View style={styles.empty}>
-                    <View style={styles.emptyIcon}>
-                        <Ionicons name="location-outline" size={36} color="#ccc" />
+                    <View style={[styles.emptyIcon, { backgroundColor: cardBgColor }]}>
+                        <Ionicons name="location-outline" size={36} color={subtextColor} />
                     </View>
-                    <Typography style={styles.emptyTitle}>No address found</Typography>
-                    <Typography style={styles.emptySubtitle}>
+                    <Typography style={[styles.emptyTitle, { color: textColor }]}>No address found</Typography>
+                    <Typography style={[styles.emptySubtitle, { color: subtextColor }]}>
                         Add a delivery address to ensure smooth checkout.
                     </Typography>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={() => setAddModalVisible(true)}>
-                        <Typography style={styles.primaryBtnText}>Add New Address</Typography>
+                    <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: textColor }]} onPress={() => setAddModalVisible(true)}>
+                        <Typography style={[styles.primaryBtnText, { color: bgColor }]}>Add New Address</Typography>
                     </TouchableOpacity>
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <Typography style={styles.sectionLabel}>Saved Addresses</Typography>
+                    <Typography style={[styles.sectionLabel, { color: subtextColor }]}>Saved Addresses</Typography>
                     {addresses.map((item) => {
                         const isSelected = item.id === selectedAddressId;
                         return (
                             <TouchableOpacity
                                 key={item.id}
-                                style={[styles.addressCard, isSelected && styles.addressCardSelected]}
+                                style={[styles.addressCard, { backgroundColor: cardBgColor, borderColor }, isSelected && { borderColor: textColor }]}
                                 onPress={() => selectAddress(item.id)}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.addressHeader}>
                                     <View style={styles.radioContainer}>
-                                        <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                                            {isSelected && <View style={styles.radioInner} />}
+                                        <View style={[styles.radioOuter, { borderColor: subtextColor }, isSelected && { borderColor: textColor }]}>
+                                            {isSelected && <View style={[styles.radioInner, { backgroundColor: textColor }]} />}
                                         </View>
-                                        <Typography style={styles.addressName}>{item.full_name || 'My Address'}</Typography>
+                                        <Typography style={[styles.addressName, { color: textColor }]}>{item.full_name || 'My Address'}</Typography>
                                     </View>
                                     <TouchableOpacity onPress={() => removeAddress(item.id)} style={{ padding: 4 }}>
                                         <Ionicons name="trash-outline" size={18} color="#ef4444" />
                                     </TouchableOpacity>
                                 </View>
                                 <View style={styles.addressBody}>
-                                    <Typography style={styles.addressText}>{item.address}</Typography>
-                                    <Typography style={styles.addressText}>{item.city}, {item.state} {item.pincode}</Typography>
-                                    {!!item.phone && <Typography style={styles.addressPhone}>Phone: {item.phone}</Typography>}
+                                    <Typography style={[styles.addressText, { color: subtextColor }]}>{item.address}</Typography>
+                                    <Typography style={[styles.addressText, { color: subtextColor }]}>{item.city}, {item.state} {item.pincode}</Typography>
+                                    {!!item.phone && <Typography style={[styles.addressPhone, { color: subtextColor }]}>Phone: {item.phone}</Typography>}
                                 </View>
                             </TouchableOpacity>
                         );
@@ -158,52 +168,52 @@ export default function ShippingAddressScreen() {
 
             {/* Add Address Modal */}
             <Modal visible={isAddModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAddModalVisible(false)}>
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Typography style={styles.modalTitle}>Add Address</Typography>
+                <View style={[styles.modalContainer, { backgroundColor: modalBgColor }]}>
+                    <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+                        <Typography style={[styles.modalTitle, { color: textColor }]}>Add Address</Typography>
                         <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.closeBtn}>
-                            <Ionicons name="close" size={24} color="#000" />
+                            <Ionicons name="close" size={24} color={textColor} />
                         </TouchableOpacity>
                     </View>
                     <ScrollView contentContainerStyle={{ padding: 24 }}>
-                        <TouchableOpacity style={styles.locationBtn} onPress={handleUseCurrentLocation} disabled={isLocating}>
+                        <TouchableOpacity style={[styles.locationBtn, { backgroundColor: cardBgColor }]} onPress={handleUseCurrentLocation} disabled={isLocating}>
                             {isLocating ? (
-                                <ActivityIndicator color="#000" size="small" />
+                                <ActivityIndicator color={textColor} size="small" />
                             ) : (
                                 <>
-                                    <Ionicons name="navigate" size={18} color="#000" />
-                                    <Typography style={styles.locationBtnText}>Use Current Location</Typography>
+                                    <Ionicons name="navigate" size={18} color={textColor} />
+                                    <Typography style={[styles.locationBtnText, { color: textColor }]}>Use Current Location</Typography>
                                 </>
                             )}
                         </TouchableOpacity>
 
-                        <View style={styles.divider} />
+                        <View style={[styles.divider, { backgroundColor: borderColor }]} />
 
                         <Typography style={styles.inputLabel}>Full Name</Typography>
-                        <TextInput style={styles.input} value={form.full_name} onChangeText={(t) => setForm({ ...form, full_name: t })} placeholder="John Doe" />
+                        <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]} value={form.full_name} onChangeText={(t) => setForm({ ...form, full_name: t })} placeholder="John Doe" />
 
                         <Typography style={styles.inputLabel}>Phone Number</Typography>
-                        <TextInput style={styles.input} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} placeholder="10-digit mobile number" keyboardType="phone-pad" />
+                        <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} placeholder="10-digit mobile number" keyboardType="phone-pad" />
 
                         <Typography style={styles.inputLabel}>Address (Flat, House no., Area, Street)</Typography>
-                        <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} value={form.address} onChangeText={(t) => setForm({ ...form, address: t })} placeholder="Enter full address" multiline />
+                        <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor, height: 80, textAlignVertical: 'top' }]} value={form.address} onChangeText={(t) => setForm({ ...form, address: t })} placeholder="Enter full address" multiline />
 
                         <View style={{ flexDirection: 'row', gap: 12 }}>
                             <View style={{ flex: 1 }}>
                                 <Typography style={styles.inputLabel}>City</Typography>
-                                <TextInput style={styles.input} value={form.city} onChangeText={(t) => setForm({ ...form, city: t })} placeholder="City" />
+                                <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]} value={form.city} onChangeText={(t) => setForm({ ...form, city: t })} placeholder="City" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Typography style={styles.inputLabel}>Pincode</Typography>
-                                <TextInput style={styles.input} value={form.pincode} onChangeText={(t) => setForm({ ...form, pincode: t })} placeholder="Pincode" keyboardType="number-pad" />
+                                <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]} value={form.pincode} onChangeText={(t) => setForm({ ...form, pincode: t })} placeholder="Pincode" keyboardType="number-pad" />
                             </View>
                         </View>
 
                         <Typography style={styles.inputLabel}>State</Typography>
-                        <TextInput style={styles.input} value={form.state} onChangeText={(t) => setForm({ ...form, state: t })} placeholder="State" />
+                        <TextInput placeholderTextColor={subtextColor} style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]} value={form.state} onChangeText={(t) => setForm({ ...form, state: t })} placeholder="State" />
 
-                        <TouchableOpacity style={[styles.primaryBtn, { marginTop: 24 }]} onPress={handleSaveAddress}>
-                            <Typography style={styles.primaryBtnText}>Save Address</Typography>
+                        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: textColor, marginTop: 24 }]} onPress={handleSaveAddress}>
+                            <Typography style={[styles.primaryBtnText, { color: bgColor }]}>Save Address</Typography>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>

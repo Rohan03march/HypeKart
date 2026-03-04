@@ -3,6 +3,7 @@ import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useCartStore } from '../../store/cartStore';
+import { useThemeStore } from '../../store/themeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +13,7 @@ const FREE_SHIPPING_THRESHOLD = 1500;
 
 export default function CartScreen() {
     const { items, removeItem, updateQuantity, getCartTotal, getCartCount } = useCartStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
     const navigation = useNavigation<any>();
 
     const total = getCartTotal();
@@ -21,14 +23,21 @@ export default function CartScreen() {
     const finalTotal = total + tax + shipping;
     const shippingProgress = Math.min(total / FREE_SHIPPING_THRESHOLD, 1);
 
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+    const imgBgColor = isDarkMode ? '#333' : '#f5f5f5';
+
     if (items.length === 0) {
         return (
-            <SafeAreaView style={styles.emptyContainer}>
-                <View style={styles.emptyIconContainer}>
-                    <Ionicons name="bag-handle-outline" size={48} color="#000" />
+            <SafeAreaView style={[styles.emptyContainer, { backgroundColor: bgColor }]}>
+                <View style={[styles.emptyIconContainer, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="bag-handle-outline" size={48} color={textColor} />
                 </View>
-                <Typography style={styles.emptyTitle}>Your bag is empty</Typography>
-                <Typography style={styles.emptySubtitle}>
+                <Typography style={[styles.emptyTitle, { color: textColor }]}>Your bag is empty</Typography>
+                <Typography style={[styles.emptySubtitle, { color: subtextColor }]}>
                     Discover the latest curated collections and secure your favorite pieces.
                 </Typography>
                 <TouchableOpacity
@@ -50,31 +59,31 @@ export default function CartScreen() {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
             {/* Header */}
-            <View style={styles.header}>
-                <Typography style={styles.headerTitle}>Shopping Bag</Typography>
-                <Typography style={styles.headerSubtitle}>{itemCount} items</Typography>
+            <View style={[styles.header, { backgroundColor: bgColor }]}>
+                <Typography style={[styles.headerTitle, { color: textColor }]}>Shopping Bag</Typography>
+                <Typography style={[styles.headerSubtitle, { color: subtextColor }]}>{itemCount} items</Typography>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 160 }}>
 
                 {/* Free shipping banner */}
                 <View style={styles.shippingBanner}>
-                    <View style={styles.shippingBannerInner}>
+                    <View style={[styles.shippingBannerInner, { backgroundColor: cardBgColor }]}>
                         {total < FREE_SHIPPING_THRESHOLD ? (
                             <>
-                                <Typography style={styles.shippingText}>
-                                    You're <Typography style={{ fontWeight: '700' }}>₹{(FREE_SHIPPING_THRESHOLD - total).toLocaleString('en-IN')}</Typography> away from free shipping.
+                                <Typography style={[styles.shippingText, { color: subtextColor }]}>
+                                    You're <Typography style={{ fontWeight: '700', color: textColor }}>₹{(FREE_SHIPPING_THRESHOLD - total).toLocaleString('en-IN')}</Typography> away from free shipping.
                                 </Typography>
-                                <View style={styles.progressBarBg}>
-                                    <View style={[styles.progressBarFill, { width: `${shippingProgress * 100}%` }]} />
+                                <View style={[styles.progressBarBg, { backgroundColor: borderColor }]}>
+                                    <View style={[styles.progressBarFill, { width: `${shippingProgress * 100}%`, backgroundColor: textColor }]} />
                                 </View>
                             </>
                         ) : (
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                                <Ionicons name="checkmark-circle" size={20} color="#000" />
-                                <Typography style={styles.shippingTextSuccess}>
+                                <Ionicons name="checkmark-circle" size={20} color={textColor} />
+                                <Typography style={[styles.shippingTextSuccess, { color: textColor }]}>
                                     Complimentary shipping unlocked.
                                 </Typography>
                             </View>
@@ -85,8 +94,8 @@ export default function CartScreen() {
                 {/* Cart Items */}
                 <View style={{ marginTop: 16, paddingHorizontal: 24 }}>
                     {items.map((item, index) => (
-                        <View key={item.id} style={styles.cartItem}>
-                            <View style={styles.itemImageContainer}>
+                        <View key={item.id} style={[styles.cartItem, { borderBottomColor: borderColor }]}>
+                            <View style={[styles.itemImageContainer, { backgroundColor: imgBgColor }]}>
                                 <Image
                                     source={{ uri: item.image }}
                                     style={styles.itemImage}
@@ -97,30 +106,30 @@ export default function CartScreen() {
                             <View style={styles.itemDetails}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <View style={{ flex: 1, paddingRight: 16 }}>
-                                        <Typography style={styles.itemName} numberOfLines={2}>{item.name}</Typography>
-                                        <Typography style={styles.itemMeta}>Size: {item.size}  |  Color: {item.color}</Typography>
+                                        <Typography style={[styles.itemName, { color: textColor }]} numberOfLines={2}>{item.name}</Typography>
+                                        <Typography style={[styles.itemMeta, { color: subtextColor }]}>Size: {item.size}  |  Color: {item.color}</Typography>
                                     </View>
                                     <TouchableOpacity onPress={() => removeItem(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                        <Ionicons name="close" size={20} color="#999" />
+                                        <Ionicons name="close" size={20} color={subtextColor} />
                                     </TouchableOpacity>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 16 }}>
-                                    <Typography style={styles.itemPrice}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Typography>
+                                    <Typography style={[styles.itemPrice, { color: textColor }]}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Typography>
 
-                                    <View style={styles.quantityControl}>
+                                    <View style={[styles.quantityControl, { backgroundColor: cardBgColor, borderColor: borderColor }]}>
                                         <TouchableOpacity
                                             style={styles.qtyBtn}
                                             onPress={() => updateQuantity(item.id, item.quantity - 1)}
                                         >
-                                            <Ionicons name="remove" size={16} color="#000" />
+                                            <Ionicons name="remove" size={16} color={textColor} />
                                         </TouchableOpacity>
-                                        <Typography style={styles.qtyText}>{item.quantity}</Typography>
+                                        <Typography style={[styles.qtyText, { color: textColor }]}>{item.quantity}</Typography>
                                         <TouchableOpacity
                                             style={styles.qtyBtn}
                                             onPress={() => updateQuantity(item.id, item.quantity + 1)}
                                         >
-                                            <Ionicons name="add" size={16} color="#000" />
+                                            <Ionicons name="add" size={16} color={textColor} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -130,36 +139,36 @@ export default function CartScreen() {
                 </View>
 
                 {/* Order Summary */}
-                <View style={styles.summaryContainer}>
-                    <Typography style={styles.summaryTitle}>Order Summary</Typography>
+                <View style={[styles.summaryContainer, { backgroundColor: cardBgColor }]}>
+                    <Typography style={[styles.summaryTitle, { color: textColor }]}>Order Summary</Typography>
 
                     <View style={styles.summaryRow}>
-                        <Typography style={styles.summaryLabel}>Subtotal</Typography>
-                        <Typography style={styles.summaryValue}>₹{total.toLocaleString('en-IN')}</Typography>
+                        <Typography style={[styles.summaryLabel, { color: subtextColor }]}>Subtotal</Typography>
+                        <Typography style={[styles.summaryValue, { color: textColor }]}>₹{total.toLocaleString('en-IN')}</Typography>
                     </View>
                     <View style={styles.summaryRow}>
-                        <Typography style={styles.summaryLabel}>Estimated Tax</Typography>
-                        <Typography style={styles.summaryValue}>₹{tax.toLocaleString('en-IN')}</Typography>
+                        <Typography style={[styles.summaryLabel, { color: subtextColor }]}>Estimated Tax</Typography>
+                        <Typography style={[styles.summaryValue, { color: textColor }]}>₹{tax.toLocaleString('en-IN')}</Typography>
                     </View>
                     <View style={styles.summaryRow}>
-                        <Typography style={styles.summaryLabel}>Shipping</Typography>
-                        <Typography style={styles.summaryValue}>
+                        <Typography style={[styles.summaryLabel, { color: subtextColor }]}>Shipping</Typography>
+                        <Typography style={[styles.summaryValue, { color: textColor }]}>
                             {shipping === 0 ? 'Free' : `₹${shipping.toLocaleString('en-IN')}`}
                         </Typography>
                     </View>
 
-                    <View style={styles.summaryDivider} />
+                    <View style={[styles.summaryDivider, { backgroundColor: borderColor }]} />
 
                     <View style={styles.totalRow}>
-                        <Typography style={styles.totalLabel}>Total</Typography>
-                        <Typography style={styles.totalValue}>₹{Math.round(finalTotal).toLocaleString('en-IN')}</Typography>
+                        <Typography style={[styles.totalLabel, { color: textColor }]}>Total</Typography>
+                        <Typography style={[styles.totalValue, { color: textColor }]}>₹{Math.round(finalTotal).toLocaleString('en-IN')}</Typography>
                     </View>
                 </View>
             </ScrollView>
 
             {/* Checkout Button (Fixed Bottom) */}
-            <View style={styles.checkoutFooter}>
-                <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={[styles.checkoutFooter, { backgroundColor: isDarkMode ? 'rgba(18,18,18,0.8)' : 'rgba(250,250,250,0.8)', borderTopColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                <BlurView intensity={80} tint={isDarkMode ? "dark" : "light"} style={StyleSheet.absoluteFill} />
                 <TouchableOpacity
                     onPress={() => navigation.navigate('Checkout')}
                     style={styles.checkoutButton}

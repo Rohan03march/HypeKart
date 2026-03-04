@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useWishlistStore } from '../../store/wishlistStore';
 import Carousel from 'react-native-reanimated-carousel';
+import { useThemeStore } from '../../store/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -63,9 +64,20 @@ export default function ProductDetailsScreen() {
     const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
     const [added, setAdded] = useState(false);
     const [isSizeGuideVisible, setIsSizeGuideVisible] = useState(false);
+    const [sizeCategory, setSizeCategory] = useState<'apparel' | 'footwear'>('apparel');
     const { toggle, isWishlisted } = useWishlistStore();
     const isFavorite = isWishlisted(productId);
     const insets = useSafeAreaInsets();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const bgColor = isDarkMode ? '#121212' : '#fff';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+    const modalBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const chipBg = isDarkMode ? '#333' : '#f5f5f5';
+    const chipBorder = isDarkMode ? '#444' : '#f5f5f5';
+    const imageBg = isDarkMode ? '#1e1e1e' : '#f3f3f3';
 
     const handleAddToCart = () => {
         addItem({
@@ -83,8 +95,8 @@ export default function ProductDetailsScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
+            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
             {/* Fixed header — always visible at top, outside ScrollView */}
             <View style={[styles.imageHeader, { top: insets.top + 8 }]} pointerEvents="box-none">
@@ -113,7 +125,7 @@ export default function ProductDetailsScreen() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
 
                 {/* Main Image Carousel */}
-                <View style={styles.mainImageContainer}>
+                <View style={[styles.mainImageContainer, { backgroundColor: imageBg }]}>
                     {productImages.length > 1 ? (
                         <Carousel
                             loop
@@ -135,39 +147,39 @@ export default function ProductDetailsScreen() {
                     {productImages.length > 1 && (
                         <View style={styles.paginationContainer}>
                             {productImages.map((_, index) => (
-                                <View key={index} style={[styles.dot, activeIndex === index && styles.activeDot]} />
+                                <View key={index} style={[styles.dot, activeIndex === index && { backgroundColor: isDarkMode ? '#fff' : '#000', width: 16 }]} />
                             ))}
                         </View>
                     )}
 
                     {/* Brand pill overlay */}
                     <View style={styles.brandOverlay}>
-                        <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
-                        <Typography style={styles.brandOverlayText}>{productBrand}</Typography>
+                        <BlurView intensity={40} tint={isDarkMode ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+                        <Typography style={[styles.brandOverlayText, { color: textColor }]}>{productBrand}</Typography>
                     </View>
                 </View>
 
                 {/* Product Info */}
-                <View style={styles.content}>
+                <View style={[styles.content]}>
 
                     {/* Name */}
-                    <Typography style={styles.productName} numberOfLines={2}>
+                    <Typography style={[styles.productName, { color: textColor }]} numberOfLines={2}>
                         {productName}
                     </Typography>
 
                     {/* Price below name */}
                     <View style={styles.priceRow}>
-                        <Typography style={styles.priceText}>₹{productPrice.toLocaleString('en-IN')}</Typography>
+                        <Typography style={[styles.priceText, { color: textColor }]}>₹{productPrice.toLocaleString('en-IN')}</Typography>
                     </View>
 
-                    <View style={styles.divider} />
+                    <View style={[styles.divider, { backgroundColor: borderColor }]} />
 
                     {/* Color Selection */}
                     {colorOptions.length > 0 && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Typography style={styles.sectionLabel}>COLOR</Typography>
-                                <Typography style={styles.sectionValue}>{selectedColor}</Typography>
+                                <Typography style={[styles.sectionValue, { color: textColor }]}>{selectedColor}</Typography>
                             </View>
                             <View style={styles.colorRow}>
                                 {colorOptions.map((color) => {
@@ -176,7 +188,7 @@ export default function ProductDetailsScreen() {
                                         <TouchableOpacity
                                             key={color}
                                             onPress={() => setSelectedColor(color)}
-                                            style={[styles.colorRing, isActive && styles.colorRingActive]}
+                                            style={[styles.colorRing, isActive && { borderColor: textColor }]}
                                             activeOpacity={0.8}
                                         >
                                             <View style={[styles.colorCircle, { backgroundColor: resolveColor(color) }]} />
@@ -193,7 +205,7 @@ export default function ProductDetailsScreen() {
                             <View style={styles.sectionHeader}>
                                 <Typography style={styles.sectionLabel}>SIZE</Typography>
                                 <TouchableOpacity onPress={() => setIsSizeGuideVisible(true)}>
-                                    <Typography style={styles.guideLink}>Size Guide →</Typography>
+                                    <Typography style={[styles.guideLink, { color: subtextColor }]}>Size Guide →</Typography>
                                 </TouchableOpacity>
                             </View>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sizeRow}>
@@ -203,10 +215,10 @@ export default function ProductDetailsScreen() {
                                         <TouchableOpacity
                                             key={size}
                                             onPress={() => setSelectedSize(size)}
-                                            style={[styles.sizeChip, isActive && styles.sizeChipActive]}
+                                            style={[styles.sizeChip, { backgroundColor: chipBg, borderColor: chipBorder }, isActive && { backgroundColor: textColor, borderColor: textColor }]}
                                             activeOpacity={0.8}
                                         >
-                                            <Typography style={[styles.sizeText, isActive && styles.sizeTextActive]}>
+                                            <Typography style={[styles.sizeText, { color: textColor }, isActive && { color: bgColor, fontWeight: '600' }]}>
                                                 {size}
                                             </Typography>
                                         </TouchableOpacity>
@@ -216,20 +228,20 @@ export default function ProductDetailsScreen() {
                         </View>
                     )}
 
-                    <View style={styles.divider} />
+                    <View style={[styles.divider, { backgroundColor: borderColor }]} />
 
                     {/* Description */}
                     <View style={styles.section}>
                         <Typography style={styles.sectionLabel}>DETAILS</Typography>
-                        <Typography style={styles.descriptionText}>{productDescription}</Typography>
+                        <Typography style={[styles.descriptionText, { color: subtextColor }]}>{productDescription}</Typography>
                     </View>
 
                 </View>
             </ScrollView>
 
             {/* Floating CTA */}
-            <View style={styles.cta}>
-                <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={[styles.cta, { backgroundColor: isDarkMode ? 'rgba(18,18,18,0.85)' : 'rgba(255,255,255,0.85)', borderTopColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+                <BlurView intensity={80} tint={isDarkMode ? "dark" : "light"} style={StyleSheet.absoluteFill} />
                 <TouchableOpacity
                     onPress={handleAddToCart}
                     style={styles.ctaButton}
@@ -264,35 +276,82 @@ export default function ProductDetailsScreen() {
                 <TouchableWithoutFeedback onPress={() => setIsSizeGuideVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <TouchableWithoutFeedback>
-                            <View style={styles.modalContent}>
+                            <View style={[styles.modalContent, { backgroundColor: modalBgColor }]}>
                                 <View style={styles.modalHeader}>
-                                    <Typography style={styles.modalTitle}>Size Guide</Typography>
+                                    <Typography style={[styles.modalTitle, { color: textColor }]}>Size Guide</Typography>
                                     <TouchableOpacity onPress={() => setIsSizeGuideVisible(false)} style={styles.closeBtn}>
-                                        <Ionicons name="close" size={24} color="#000" />
+                                        <Ionicons name="close" size={24} color={textColor} />
                                     </TouchableOpacity>
                                 </View>
+
+                                <View style={[styles.modalTabs, { backgroundColor: isDarkMode ? '#333' : '#f5f5f5' }]}>
+                                    <TouchableOpacity
+                                        style={[styles.modalTab, sizeCategory === 'apparel' && { backgroundColor: isDarkMode ? '#555' : '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }]}
+                                        onPress={() => setSizeCategory('apparel')}
+                                    >
+                                        <Typography style={[styles.modalTabText, { color: sizeCategory === 'apparel' ? textColor : subtextColor }]}>Apparel</Typography>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.modalTab, sizeCategory === 'footwear' && { backgroundColor: isDarkMode ? '#555' : '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }]}
+                                        onPress={() => setSizeCategory('footwear')}
+                                    >
+                                        <Typography style={[styles.modalTabText, { color: sizeCategory === 'footwear' ? textColor : subtextColor }]}>Footwear</Typography>
+                                    </TouchableOpacity>
+                                </View>
+
                                 <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-                                    <View style={styles.tableRowHeader}>
-                                        <Typography style={styles.tableCellHeader}>Size</Typography>
-                                        <Typography style={styles.tableCellHeader}>Chest (in)</Typography>
-                                        <Typography style={styles.tableCellHeader}>Length (in)</Typography>
-                                    </View>
-                                    {[
-                                        { size: 'S', chest: '36-38', length: '27' },
-                                        { size: 'M', chest: '38-40', length: '28' },
-                                        { size: 'L', chest: '40-42', length: '29' },
-                                        { size: 'XL', chest: '42-44', length: '30' },
-                                        { size: 'XXL', chest: '44-46', length: '31' }
-                                    ].map((row, i) => (
-                                        <View key={i} style={styles.tableRow}>
-                                            <Typography style={styles.tableCell}>{row.size}</Typography>
-                                            <Typography style={styles.tableCell}>{row.chest}</Typography>
-                                            <Typography style={styles.tableCell}>{row.length}</Typography>
-                                        </View>
-                                    ))}
-                                    <Typography style={styles.modalNote}>
-                                        * Fit may vary depending on style and brand. Please allow 1-2 inch tolerances due to manual measurement.
-                                    </Typography>
+                                    {sizeCategory === 'apparel' ? (
+                                        <>
+                                            <View style={[styles.tableRowHeader, { borderBottomColor: borderColor }]}>
+                                                <Typography style={[styles.tableCellHeader, { color: subtextColor }]}>Size</Typography>
+                                                <Typography style={[styles.tableCellHeader, { color: subtextColor }]}>Chest (in)</Typography>
+                                                <Typography style={[styles.tableCellHeader, { color: subtextColor }]}>Length (in)</Typography>
+                                            </View>
+                                            {[
+                                                { size: 'S', chest: '36-38', length: '27' },
+                                                { size: 'M', chest: '38-40', length: '28' },
+                                                { size: 'L', chest: '40-42', length: '29' },
+                                                { size: 'XL', chest: '42-44', length: '30' },
+                                                { size: 'XXL', chest: '44-46', length: '31' }
+                                            ].map((row, i) => (
+                                                <View key={i} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+                                                    <Typography style={[styles.tableCell, { color: textColor }]}>{row.size}</Typography>
+                                                    <Typography style={[styles.tableCell, { color: textColor }]}>{row.chest}</Typography>
+                                                    <Typography style={[styles.tableCell, { color: textColor }]}>{row.length}</Typography>
+                                                </View>
+                                            ))}
+                                            <Typography style={[styles.modalNote, { color: subtextColor }]}>
+                                                * Fit may vary depending on style and brand. Please allow 1-2 inch tolerances due to manual measurement.
+                                            </Typography>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <View style={[styles.tableRowHeader, { borderBottomColor: borderColor }]}>
+                                                <Typography style={[styles.tableCellHeader, { flex: 1.2, color: subtextColor }]}>UK/India</Typography>
+                                                <Typography style={[styles.tableCellHeader, { flex: 1.2, color: subtextColor }]}>US (Men)</Typography>
+                                                <Typography style={[styles.tableCellHeader, { color: subtextColor }]}>EU</Typography>
+                                                <Typography style={[styles.tableCellHeader, { color: subtextColor }]}>CM</Typography>
+                                            </View>
+                                            {[
+                                                { uk: '6', us: '7', eu: '40', cm: '25' },
+                                                { uk: '7', us: '8', eu: '41', cm: '26' },
+                                                { uk: '8', us: '9', eu: '42.5', cm: '27' },
+                                                { uk: '9', us: '10', eu: '44', cm: '28' },
+                                                { uk: '10', us: '11', eu: '45', cm: '29' },
+                                                { uk: '11', us: '12', eu: '46', cm: '30' }
+                                            ].map((row, i) => (
+                                                <View key={i} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+                                                    <Typography style={[styles.tableCell, { flex: 1.2, color: textColor }]}>{row.uk}</Typography>
+                                                    <Typography style={[styles.tableCell, { flex: 1.2, color: textColor }]}>{row.us}</Typography>
+                                                    <Typography style={[styles.tableCell, { color: textColor }]}>{row.eu}</Typography>
+                                                    <Typography style={[styles.tableCell, { color: textColor }]}>{row.cm}</Typography>
+                                                </View>
+                                            ))}
+                                            <Typography style={[styles.modalNote, { color: subtextColor }]}>
+                                                * Sizes are standard UK/India measurements. If you are between sizes, we recommend sizing up.
+                                            </Typography>
+                                        </>
+                                    )}
                                 </ScrollView>
                             </View>
                         </TouchableWithoutFeedback>
@@ -542,6 +601,22 @@ const styles = StyleSheet.create({
         paddingTop: 24,
         paddingBottom: 40,
         maxHeight: '70%',
+    },
+    modalTabs: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        borderRadius: 8,
+        padding: 4,
+    },
+    modalTab: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 6,
+    },
+    modalTabText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
     modalHeader: {
         flexDirection: 'row',

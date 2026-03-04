@@ -9,22 +9,33 @@ import { useUser } from '@clerk/clerk-expo';
 import { getUserOrders } from '../../lib/getUserOrders';
 import { useCartStore } from '../../store/cartStore';
 import { useCacheStore } from '../../store/cacheStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    Placed: { bg: '#f5f5f5', text: '#666' },
-    Processing: { bg: '#eff6ff', text: '#3b82f6' },
-    Shipped: { bg: '#fff7ed', text: '#f97316' },
-    'Out for Delivery': { bg: '#faf5ff', text: '#a855f7' },
-    Delivered: { bg: '#f0fdf4', text: '#22c55e' },
-    Cancelled: { bg: '#fef2f2', text: '#ef4444' },
-    'Return Requested': { bg: '#fefce8', text: '#ca8a04' },
+const STATUS_COLORS: Record<string, { lightBg: string; lightText: string; darkBg: string; darkText: string }> = {
+    Placed: { lightBg: '#f5f5f5', lightText: '#666', darkBg: '#333', darkText: '#ccc' },
+    Processing: { lightBg: '#eff6ff', lightText: '#3b82f6', darkBg: '#1e3a8a', darkText: '#93c5fd' },
+    Shipped: { lightBg: '#fff7ed', lightText: '#f97316', darkBg: '#7c2d12', darkText: '#fdba74' },
+    'Out for Delivery': { lightBg: '#faf5ff', lightText: '#a855f7', darkBg: '#4c1d95', darkText: '#d8b4fe' },
+    Delivered: { lightBg: '#f0fdf4', lightText: '#22c55e', darkBg: '#14532d', darkText: '#86efac' },
+    Cancelled: { lightBg: '#fef2f2', lightText: '#ef4444', darkBg: '#7f1d1d', darkText: '#fca5a5' },
+    'Return Requested': { lightBg: '#fefce8', lightText: '#ca8a04', darkBg: '#713f12', darkText: '#fde047' },
 };
 
-const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId }: any) => {
+const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId, isDarkMode }: any) => {
     const items: any[] = order.order_items || [];
-    const statusStyle = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
+    const statusObj = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
+    const statusStyle = {
+        bg: isDarkMode ? statusObj.darkBg : statusObj.lightBg,
+        text: isDarkMode ? statusObj.darkText : statusObj.lightText
+    };
+
+    const bgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#999';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+    const thumbBg = isDarkMode ? '#333' : '#f5f5f5';
     const date = new Date(order.created_at).toLocaleDateString('en-IN', {
         day: '2-digit', month: 'short', year: 'numeric'
     });
@@ -33,11 +44,11 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId 
     const isCancelled = order.status === 'Cancelled';
 
     return (
-        <View style={styles.orderCard}>
-            <View style={styles.orderHeader}>
+        <View style={[styles.orderCard, { backgroundColor: bgColor }]}>
+            <View style={[styles.orderHeader, { borderBottomColor: borderColor }]}>
                 <View style={{ flex: 1 }}>
-                    <Typography style={styles.orderId}>#{order.id.split('-')[0].toUpperCase()}</Typography>
-                    <Typography style={styles.orderDate}>{date}</Typography>
+                    <Typography style={[styles.orderId, { color: textColor }]}>#{order.id.split('-')[0].toUpperCase()}</Typography>
+                    <Typography style={[styles.orderDate, { color: subtextColor }]}>{date}</Typography>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                     <Typography style={[styles.statusText, { color: statusStyle.text }]}>
@@ -56,10 +67,10 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId 
                     contentContainerStyle={{ gap: 10 }}
                     initialNumToRender={4}
                     renderItem={({ item }) => (
-                        <View style={styles.itemThumb}>
+                        <View style={[styles.itemThumb, { backgroundColor: thumbBg }]}>
                             {item.image
                                 ? <Image source={{ uri: item.image }} style={styles.thumbImg} contentFit="cover" cachePolicy="memory-disk" />
-                                : <Ionicons name="image-outline" size={24} color="#ccc" />
+                                : <Ionicons name="image-outline" size={24} color={subtextColor} />
                             }
                         </View>
                     )}
@@ -67,29 +78,29 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId 
             )}
 
             {items.map((item: any, i: number) => (
-                <View key={i} style={[styles.itemRow, i > 0 && styles.itemBorder]}>
+                <View key={i} style={[styles.itemRow, i > 0 && [styles.itemBorder, { borderTopColor: borderColor }]]}>
                     <View style={{ flex: 1 }}>
-                        <Typography style={styles.itemName} numberOfLines={1}>{item.name}</Typography>
-                        <Typography style={styles.itemMeta}>
+                        <Typography style={[styles.itemName, { color: textColor }]} numberOfLines={1}>{item.name}</Typography>
+                        <Typography style={[styles.itemMeta, { color: subtextColor }]}>
                             {[item.size, item.color, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
                         </Typography>
                     </View>
                     {i === 0 && (
-                        <Typography style={styles.orderTotal}>₹{Number(order.total_amount).toLocaleString('en-IN')}</Typography>
+                        <Typography style={[styles.orderTotal, { color: textColor }]}>₹{Number(order.total_amount).toLocaleString('en-IN')}</Typography>
                     )}
                 </View>
             ))}
 
             {!isCancelled && (
                 <View style={styles.actionsRow}>
-                    <TouchableOpacity style={styles.actionBtnOutline} onPress={() => onRepurchase(items)} activeOpacity={0.7}>
-                        <Ionicons name="refresh-outline" size={15} color="#000" />
-                        <Typography style={styles.actionBtnOutlineText}>Repurchase</Typography>
+                    <TouchableOpacity style={[styles.actionBtnOutline, { backgroundColor: bgColor, borderColor }]} onPress={() => onRepurchase(items)} activeOpacity={0.7}>
+                        <Ionicons name="refresh-outline" size={15} color={textColor} />
+                        <Typography style={[styles.actionBtnOutlineText, { color: textColor }]}>Repurchase</Typography>
                     </TouchableOpacity>
 
                     {canCancel && (
                         <TouchableOpacity
-                            style={[styles.actionBtnOutline, styles.actionBtnRed]}
+                            style={[styles.actionBtnOutline, { backgroundColor: bgColor, borderColor: '#fca5a5' }]}
                             onPress={() => onCancel(order.id)}
                             disabled={cancellingId === order.id}
                             activeOpacity={0.7}
@@ -105,7 +116,7 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId 
                     )}
 
                     {canReturn && (
-                        <TouchableOpacity style={[styles.actionBtnOutline, styles.actionBtnOrange]} onPress={() => onReturn(order.id)} activeOpacity={0.7}>
+                        <TouchableOpacity style={[styles.actionBtnOutline, { backgroundColor: bgColor, borderColor: '#fdba74' }]} onPress={() => onReturn(order.id)} activeOpacity={0.7}>
                             <Ionicons name="return-up-back-outline" size={15} color="#f97316" />
                             <Typography style={[styles.actionBtnOutlineText, { color: '#f97316' }]}>Return</Typography>
                         </TouchableOpacity>
@@ -125,6 +136,12 @@ export default function OrderHistoryScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const { getOrders, setOrders: cacheOrders } = useCacheStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const mainBgColor = isDarkMode ? '#121212' : '#fafafa';
+    const mainTextColor = isDarkMode ? '#fff' : '#000';
+    const mainSubtextColor = isDarkMode ? '#aaa' : '#999';
+    const headerBtnBg = isDarkMode ? '#1e1e1e' : '#f5f5f5';
 
     const fetchOrders = useCallback(async (forceRefresh = false) => {
         if (!user?.id) { setIsLoading(false); return; }
@@ -237,24 +254,24 @@ export default function OrderHistoryScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: mainBgColor }]}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={20} color="#000" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: headerBtnBg }]}>
+                    <Ionicons name="arrow-back" size={20} color={mainTextColor} />
                 </TouchableOpacity>
-                <Typography style={styles.headerTitle}>Order History</Typography>
+                <Typography style={[styles.headerTitle, { color: mainTextColor }]}>Order History</Typography>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
-                <ActivityIndicator color="#000" style={{ marginTop: 60 }} />
+                <ActivityIndicator color={mainTextColor} style={{ marginTop: 60 }} />
             ) : orders.length === 0 ? (
                 <View style={styles.emptyState}>
-                    <View style={styles.emptyIcon}>
-                        <Ionicons name="bag-handle-outline" size={36} color="#ccc" />
+                    <View style={[styles.emptyIcon, { backgroundColor: headerBtnBg }]}>
+                        <Ionicons name="bag-handle-outline" size={36} color={mainSubtextColor} />
                     </View>
-                    <Typography style={styles.emptyTitle}>No orders yet</Typography>
-                    <Typography style={styles.emptySubtitle}>Your order history will appear here.</Typography>
+                    <Typography style={[styles.emptyTitle, { color: mainTextColor }]}>No orders yet</Typography>
+                    <Typography style={[styles.emptySubtitle, { color: mainSubtextColor }]}>Your order history will appear here.</Typography>
                 </View>
             ) : (
                 <FlatList
@@ -267,11 +284,12 @@ export default function OrderHistoryScreen() {
                             onCancel={handleCancel}
                             onReturn={handleReturn}
                             cancellingId={cancellingId}
+                            isDarkMode={isDarkMode}
                         />
                     )}
                     contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
                     showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#000" colors={['#000']} />}
+                    refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={mainTextColor} colors={[mainTextColor]} />}
                     initialNumToRender={5}
                     maxToRenderPerBatch={5}
                     windowSize={5}

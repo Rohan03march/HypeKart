@@ -2,7 +2,9 @@ import { ClerkLoaded, ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { NavigationContainer } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import RootNavigator from './src/navigation/RootNavigator';
+import { useThemeStore } from './src/store/themeStore';
 
 const tokenCache = {
   async getToken(key: string) {
@@ -36,6 +38,8 @@ if (!publishableKey) {
 }
 
 export default function App() {
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
@@ -43,6 +47,7 @@ export default function App() {
           <NavigationContainer>
             <RootNavigator />
           </NavigationContainer>
+          <StatusBar style={isDarkMode ? 'light' : 'dark'} backgroundColor="transparent" />
         </SafeAreaProvider>
       </ClerkLoaded>
     </ClerkProvider>

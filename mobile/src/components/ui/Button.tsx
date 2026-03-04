@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, ActivityIndicator, TouchableOpacityProps, View, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Typography } from './Typography';
+import { useThemeStore } from '../../store/themeStore';
 
 interface ButtonProps extends TouchableOpacityProps {
     title: string;
@@ -26,6 +27,7 @@ export function Button({
     disabled,
     ...props
 }: ButtonProps) {
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     const handlePress = (e: any) => {
         if (disabled || isLoading) return;
@@ -55,7 +57,7 @@ export function Button({
             {...props}
         >
             {isLoading ? (
-                <ActivityIndicator color={variant === 'primary' ? '#fff' : '#000'} />
+                <ActivityIndicator color={variant === 'primary' ? (isDarkMode ? '#000' : '#fff') : (isDarkMode ? '#fff' : '#000')} />
             ) : (
                 <View style={styles.contentContainer}>
                     {leftIcon && <View style={styles.leftIconContainer}>{leftIcon}</View>}

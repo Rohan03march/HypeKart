@@ -13,6 +13,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useUser } from '@clerk/clerk-expo';
 
 import { useAddressStore } from '../../store/addressStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -75,6 +76,14 @@ export default function CheckoutScreen() {
 
     const { addresses, selectedAddressId } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
+
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
+    const borderColor = isDarkMode ? '#333' : '#f0f0f0';
+    const ctaBg = isDarkMode ? 'rgba(18,18,18,0.95)' : 'rgba(250,250,250,0.95)';
 
     const validateAddress = () => {
         if (!selectedAddress) return 'Please select a delivery address';
@@ -169,8 +178,8 @@ export default function CheckoutScreen() {
             <View style={{ flex: 1, backgroundColor: '#000' }}>
                 {isLoading && (
                     <View style={styles.loaderOverlay}>
-                        <ActivityIndicator size="large" color="#fff" />
-                        <Typography style={{ color: '#fff', marginTop: 12 }}>Confirming your order…</Typography>
+                        <ActivityIndicator size="large" color={textColor} />
+                        <Typography style={{ color: textColor, marginTop: 12 }}>Confirming your order…</Typography>
                     </View>
                 )}
                 <WebView
@@ -190,13 +199,13 @@ export default function CheckoutScreen() {
 
     // ─── Address Step ──────────────────────────────────────────────
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={20} color="#000" />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="arrow-back" size={20} color={textColor} />
                 </TouchableOpacity>
-                <Typography style={styles.headerTitle}>Checkout</Typography>
+                <Typography style={[styles.headerTitle, { color: textColor }]}>Checkout</Typography>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -207,51 +216,51 @@ export default function CheckoutScreen() {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography style={styles.sectionTitle}>Delivery Address</Typography>
                         <TouchableOpacity onPress={() => navigation.navigate('ShippingAddress')}>
-                            <Typography style={{ fontSize: 13, color: '#000', fontWeight: '600' }}>Change</Typography>
+                            <Typography style={{ fontSize: 13, color: textColor, fontWeight: '600' }}>Change</Typography>
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.card}>
+                    <View style={[styles.card, { backgroundColor: cardBgColor }]}>
                         {selectedAddress ? (
                             <View style={{ padding: 20 }}>
-                                <Typography style={{ fontSize: 15, fontWeight: '600', color: '#000', marginBottom: 4 }}>
+                                <Typography style={{ fontSize: 15, fontWeight: '600', color: textColor, marginBottom: 4 }}>
                                     {selectedAddress.full_name}
                                 </Typography>
-                                <Typography style={{ fontSize: 14, color: '#666', lineHeight: 22 }}>
+                                <Typography style={{ fontSize: 14, color: subtextColor, lineHeight: 22 }}>
                                     {selectedAddress.address}{'\n'}
                                     {selectedAddress.city}, {selectedAddress.state} {selectedAddress.pincode}
                                 </Typography>
-                                <Typography style={{ fontSize: 13, color: '#999', marginTop: 8, fontWeight: '500' }}>
+                                <Typography style={{ fontSize: 13, color: subtextColor, marginTop: 8, fontWeight: '500' }}>
                                     Phone: {selectedAddress.phone}
                                 </Typography>
                             </View>
                         ) : (
                             <TouchableOpacity style={{ padding: 20, alignItems: 'center' }} onPress={() => navigation.navigate('ShippingAddress')}>
-                                <Ionicons name="location-outline" size={32} color="#ccc" style={{ marginBottom: 8 }} />
-                                <Typography style={{ fontSize: 14, color: '#666', fontWeight: '500' }}>Please select a delivery address</Typography>
+                                <Ionicons name="location-outline" size={32} color={subtextColor} style={{ marginBottom: 8 }} />
+                                <Typography style={{ fontSize: 14, color: subtextColor, fontWeight: '500' }}>Please select a delivery address</Typography>
                             </TouchableOpacity>
                         )}
                     </View>
 
                     {/* Order Summary */}
                     <Typography style={styles.sectionTitle}>Order Summary</Typography>
-                    <View style={styles.card}>
+                    <View style={[styles.card, { backgroundColor: cardBgColor }]}>
                         {items.map((item, i) => (
-                            <View key={item.id} style={[styles.summaryRow, i < items.length - 1 && styles.summaryRowBorder]}>
+                            <View key={item.id} style={[styles.summaryRow, i < items.length - 1 && [styles.summaryRowBorder, { borderBottomColor: borderColor }]]}>
                                 <View style={{ flex: 1 }}>
-                                    <Typography style={styles.itemName} numberOfLines={1}>{item.name}</Typography>
-                                    <Typography style={styles.itemMeta}>{item.size} · {item.color} · Qty {item.quantity}</Typography>
+                                    <Typography style={[styles.itemName, { color: textColor }]} numberOfLines={1}>{item.name}</Typography>
+                                    <Typography style={[styles.itemMeta, { color: subtextColor }]}>{item.size} · {item.color} · Qty {item.quantity}</Typography>
                                 </View>
-                                <Typography style={styles.itemPrice}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Typography>
+                                <Typography style={[styles.itemPrice, { color: textColor }]}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</Typography>
                             </View>
                         ))}
-                        <View style={styles.divider} />
-                        <View style={styles.totalSummaryRow}><Typography style={styles.totalLabel}>Subtotal</Typography><Typography style={styles.totalSummaryValue}>₹{subtotal.toLocaleString('en-IN')}</Typography></View>
-                        <View style={styles.totalSummaryRow}><Typography style={styles.totalLabel}>GST (18%)</Typography><Typography style={styles.totalSummaryValue}>₹{Math.round(tax).toLocaleString('en-IN')}</Typography></View>
-                        <View style={styles.totalSummaryRow}><Typography style={styles.totalLabel}>Shipping</Typography><Typography style={styles.totalSummaryValue}>{shipping === 0 ? 'Free' : `₹${shipping}`}</Typography></View>
-                        <View style={styles.divider} />
+                        <View style={[styles.divider, { backgroundColor: borderColor }]} />
+                        <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>Subtotal</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>₹{subtotal.toLocaleString('en-IN')}</Typography></View>
+                        <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>GST (18%)</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>₹{Math.round(tax).toLocaleString('en-IN')}</Typography></View>
+                        <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>Shipping</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>{shipping === 0 ? 'Free' : `₹${shipping}`}</Typography></View>
+                        <View style={[styles.divider, { backgroundColor: borderColor }]} />
                         <View style={styles.totalSummaryRow}>
-                            <Typography style={styles.grandTotalLabel}>Total</Typography>
-                            <Typography style={styles.grandTotalValue}>₹{finalTotal.toLocaleString('en-IN')}</Typography>
+                            <Typography style={[styles.grandTotalLabel, { color: textColor }]}>Total</Typography>
+                            <Typography style={[styles.grandTotalValue, { color: textColor }]}>₹{finalTotal.toLocaleString('en-IN')}</Typography>
                         </View>
                     </View>
 
@@ -260,7 +269,7 @@ export default function CheckoutScreen() {
             </KeyboardAvoidingView>
 
             {/* Sticky CTA */}
-            <View style={styles.ctaContainer}>
+            <View style={[styles.ctaContainer, { backgroundColor: ctaBg, borderTopColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                 <TouchableOpacity
                     onPress={handleProceedToPayment}
                     style={styles.ctaButton}
@@ -269,7 +278,7 @@ export default function CheckoutScreen() {
                 >
                     <LinearGradient colors={['#000', '#1a1a1a']} style={styles.ctaGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                         {isLoading
-                            ? <ActivityIndicator color="#fff" />
+                            ? <ActivityIndicator color={textColor} />
                             : <Typography style={styles.ctaText}>Pay  ₹{finalTotal.toLocaleString('en-IN')}</Typography>
                         }
                     </LinearGradient>

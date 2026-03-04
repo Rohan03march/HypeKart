@@ -14,35 +14,42 @@ import { useWishlistStore } from '../../store/wishlistStore';
 import * as Location from 'expo-location';
 import { useAddressStore } from '../../store/addressStore';
 import { useCacheStore } from '../../store/cacheStore';
+import { useThemeStore } from '../../store/themeStore';
 
 const getPrimaryImage = (images: string[]) => {
     if (images && images.length > 0) return images[0];
     return 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop';
 };
 
-const ProductCard = memo(({ prod, onPress, onToggleWishlist, isWishlisted }: any) => (
-    <TouchableOpacity style={styles.productCard} onPress={onPress}>
-        <View style={styles.productImgWrapper}>
-            <Image
-                source={{ uri: getPrimaryImage(prod.images) }}
-                style={styles.productImg}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-            />
-            <View style={styles.productImgOverlay} />
-            <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); onToggleWishlist(prod); }}
-                style={styles.heartBtn}
-            >
-                <BlurView intensity={20} style={StyleSheet.absoluteFill} />
-                <Ionicons name={isWishlisted ? "heart" : "heart-outline"} color={isWishlisted ? "#ef4444" : "#fff"} size={20} />
-            </TouchableOpacity>
-        </View>
-        <Typography style={styles.productBrand}>{prod.brand || 'HYPEKART'}</Typography>
-        <Typography style={styles.productTitle} numberOfLines={1}>{prod.title}</Typography>
-        <Typography style={styles.productPrice}>₹{Number(prod.base_price).toLocaleString('en-IN')}</Typography>
-    </TouchableOpacity>
-));
+const ProductCard = memo(({ prod, onPress, onToggleWishlist, isWishlisted, isDarkMode }: any) => {
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subTextColor = isDarkMode ? '#aaa' : '#999';
+    const imgBgColor = isDarkMode ? '#1e1e1e' : '#f5f5f5';
+
+    return (
+        <TouchableOpacity style={styles.productCard} onPress={onPress}>
+            <View style={[styles.productImgWrapper, { backgroundColor: imgBgColor }]}>
+                <Image
+                    source={{ uri: getPrimaryImage(prod.images) }}
+                    style={styles.productImg}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                />
+                <View style={styles.productImgOverlay} />
+                <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation(); onToggleWishlist(prod); }}
+                    style={styles.heartBtn}
+                >
+                    <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+                    <Ionicons name={isWishlisted ? "heart" : "heart-outline"} color={isWishlisted ? "#ef4444" : "#fff"} size={20} />
+                </TouchableOpacity>
+            </View>
+            <Typography style={[styles.productBrand, { color: subTextColor }]}>{prod.brand || 'HYPEKART'}</Typography>
+            <Typography style={[styles.productTitle, { color: textColor }]} numberOfLines={1}>{prod.title}</Typography>
+            <Typography style={[styles.productPrice, { color: textColor }]}>₹{Number(prod.base_price).toLocaleString('en-IN')}</Typography>
+        </TouchableOpacity>
+    );
+});
 
 const { width } = Dimensions.get('window');
 
@@ -111,6 +118,7 @@ export default function HomeScreen() {
     const navigation = useNavigation<any>();
     const [activeCategory, setActiveCategory] = useState('1');
     const { toggle, isWishlisted } = useWishlistStore();
+    const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     // Supabase Data States
     const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
@@ -322,27 +330,35 @@ export default function HomeScreen() {
         });
     }, [toggle]);
 
+    const bgColor = isDarkMode ? '#121212' : '#fafafa';
+    const textColor = isDarkMode ? '#fff' : '#000';
+    const subtextColor = isDarkMode ? '#aaa' : '#666';
+    const searchBg = isDarkMode ? '#1e1e1e' : '#f1f1f1';
+    const placeholderColor = isDarkMode ? '#666' : '#999';
+    const iconBg = isDarkMode ? '#333' : '#f5f5f5';
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
             <SafeAreaView style={{ flex: 1 }}>
 
                 <View style={styles.header}>
                     {isSearching ? (
                         <View style={styles.searchHeaderContainer}>
-                            <View style={styles.searchInputContainer}>
-                                <Ionicons name="search" size={18} color="#666" style={{ marginLeft: 12 }} />
+                            <View style={[styles.searchInputContainer, { backgroundColor: searchBg }]}>
+                                <Ionicons name="search" size={18} color={subtextColor} style={{ marginLeft: 12 }} />
                                 <TextInput
                                     ref={searchInputRef}
-                                    style={styles.searchInput}
+                                    style={[styles.searchInput, { color: textColor }]}
                                     placeholder="Search products..."
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={placeholderColor}
                                     value={searchQuery}
                                     onChangeText={setSearchQuery}
                                     autoFocus
+                                    keyboardAppearance={isDarkMode ? 'dark' : 'light'}
                                 />
                                 {searchQuery.length > 0 && (
                                     <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 8 }}>
-                                        <Ionicons name="close-circle" size={18} color="#ccc" />
+                                        <Ionicons name="close-circle" size={18} color={placeholderColor} />
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -353,34 +369,34 @@ export default function HomeScreen() {
                                 }}
                                 style={styles.cancelSearchBtn}
                             >
-                                <Typography style={{ fontWeight: '600', color: '#000' }}>Cancel</Typography>
+                                <Typography style={{ fontWeight: '600', color: textColor }}>Cancel</Typography>
                             </TouchableOpacity>
                         </View>
                     ) : (
                         <>
                             <View style={{ flex: 1, paddingRight: 16 }}>
-                                <Typography style={styles.logoText}>HYPEKART</Typography>
+                                <Typography style={[styles.logoText, { color: textColor }]}>HYPEKART</Typography>
                                 <TouchableOpacity
                                     style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
                                     onPress={() => navigation.navigate('ShippingAddress')}
                                     activeOpacity={0.7}
                                 >
-                                    <Ionicons name="location" size={12} color="#666" />
-                                    <Typography style={{ fontSize: 12, color: '#666', marginLeft: 4, fontWeight: '500', flexShrink: 1 }} numberOfLines={1}>
+                                    <Ionicons name="location" size={12} color={subtextColor} />
+                                    <Typography style={{ fontSize: 12, color: subtextColor, marginLeft: 4, fontWeight: '500', flexShrink: 1 }} numberOfLines={1}>
                                         {selectedAddress ? selectedAddress.address : 'Select Delivery Address'}
                                     </Typography>
-                                    <Ionicons name="chevron-down" size={12} color="#666" style={{ marginLeft: 2 }} />
+                                    <Ionicons name="chevron-down" size={12} color={subtextColor} style={{ marginLeft: 2 }} />
                                 </TouchableOpacity>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 12 }}>
                                 <TouchableOpacity
                                     onPress={() => setIsSearching(true)}
-                                    style={styles.iconBtn}
+                                    style={[styles.iconBtn, { backgroundColor: iconBg }]}
                                 >
-                                    <Ionicons name="search-outline" size={20} color="#000" />
+                                    <Ionicons name="search-outline" size={20} color={textColor} />
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={styles.iconBtn}>
-                                    <Ionicons name="heart-outline" size={20} color="#000" />
+                                <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={[styles.iconBtn, { backgroundColor: iconBg }]}>
+                                    <Ionicons name="heart-outline" size={20} color={textColor} />
                                 </TouchableOpacity>
                             </View>
                         </>
@@ -405,26 +421,26 @@ export default function HomeScreen() {
                         <View style={{ flex: 1, minHeight: 400 }}>
                             {searchQuery.trim() === '' ? (
                                 <View style={{ padding: 40, alignItems: 'center' }}>
-                                    <Ionicons name="search" size={48} color="#ddd" />
-                                    <Typography style={{ color: '#999', marginTop: 16, fontSize: 16 }}>Search for sneakers, apparel...</Typography>
+                                    <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
+                                    <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, apparel...</Typography>
                                 </View>
                             ) : isSearchLoading ? (
-                                <ActivityIndicator color="#000" style={{ marginTop: 40 }} />
+                                <ActivityIndicator color={textColor} style={{ marginTop: 40 }} />
                             ) : searchResults.length === 0 ? (
                                 <View style={{ padding: 40, alignItems: 'center' }}>
-                                    <Typography style={{ color: '#000', fontSize: 18, fontWeight: '600' }}>No results found</Typography>
-                                    <Typography style={{ color: '#999', marginTop: 8, textAlign: 'center' }}>We couldn't find anything matching "{searchQuery}"</Typography>
+                                    <Typography style={{ color: textColor, fontSize: 18, fontWeight: '600' }}>No results found</Typography>
+                                    <Typography style={{ color: placeholderColor, marginTop: 8, textAlign: 'center' }}>We couldn't find anything matching "{searchQuery}"</Typography>
                                 </View>
                             ) : (
                                 <View style={[styles.newGrid, { paddingTop: 16 }]}>
                                     {searchResults.map((item) => (
                                         <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                            <View style={styles.newGridImgWrapper}>
+                                            <View style={[styles.newGridImgWrapper, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
                                                 <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
                                             </View>
                                             <View style={styles.newGridInfo}>
-                                                <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
-                                                <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                                <Typography style={[styles.newGridTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                                <Typography style={[styles.productPrice, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
                                             </View>
                                         </TouchableOpacity>
                                     ))}
@@ -491,13 +507,17 @@ export default function HomeScreen() {
                             >
                                 {CATEGORIES.map((cat) => {
                                     const isActive = activeCategory === cat.id;
+                                    const pillBg = isActive ? textColor : (isDarkMode ? '#1e1e1e' : '#fff');
+                                    const pillBorder = isActive ? textColor : (isDarkMode ? '#333' : '#f0f0f0');
+                                    const textCol = isActive ? bgColor : (isDarkMode ? '#aaa' : '#666');
+
                                     return (
                                         <TouchableOpacity
                                             key={cat.id}
                                             onPress={() => setActiveCategory(cat.id)}
-                                            style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                                            style={[styles.categoryPill, { backgroundColor: pillBg, borderColor: pillBorder }, isActive && styles.categoryPillActive]}
                                         >
-                                            <Typography style={[styles.categoryText, isActive && styles.categoryTextActive]}>
+                                            <Typography style={[styles.categoryText, { color: textCol }, isActive && styles.categoryTextActive]}>
                                                 {cat.name}
                                             </Typography>
                                         </TouchableOpacity>
@@ -507,14 +527,14 @@ export default function HomeScreen() {
 
                             {/* Trending Now */}
                             <View style={styles.sectionHeader}>
-                                <Typography style={styles.sectionTitle}>Trending</Typography>
+                                <Typography style={[styles.sectionTitle, { color: textColor }]}>Trending</Typography>
                                 <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'Trending', action: 'trending' })}>
-                                    <Typography style={styles.seeAllText}>See all</Typography>
+                                    <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
                                 </TouchableOpacity>
                             </View>
 
                             {isLoading ? (
-                                <ActivityIndicator color="#000" style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
+                                <ActivityIndicator color={textColor} style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
                             ) : (
                                 <FlatList
                                     horizontal
@@ -535,6 +555,7 @@ export default function HomeScreen() {
                                             onPress={() => navigation.navigate('ProductDetails', { product: prod })}
                                             onToggleWishlist={handleToggleWishlist}
                                             isWishlisted={isWishlisted(prod.id)}
+                                            isDarkMode={isDarkMode}
                                         />
                                     )}
                                 />
@@ -542,18 +563,18 @@ export default function HomeScreen() {
 
                             {/* New Arrivals Grid */}
                             <View style={styles.sectionHeader}>
-                                <Typography style={styles.sectionTitle}>New Arrivals</Typography>
+                                <Typography style={[styles.sectionTitle, { color: textColor }]}>New Arrivals</Typography>
                                 <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals' })}>
-                                    <Typography style={styles.seeAllText}>See all</Typography>
+                                    <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.newGrid}>
                                 {isLoading ? (
-                                    <ActivityIndicator color="#000" style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
+                                    <ActivityIndicator color={textColor} style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
                                 ) : newArrivals.map((item) => (
                                     <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                        <View style={styles.newGridImgWrapper}>
+                                        <View style={[styles.newGridImgWrapper, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
                                             <Image
                                                 source={{ uri: getPrimaryImage(item.images) }}
                                                 style={styles.productImg}
@@ -586,8 +607,8 @@ export default function HomeScreen() {
                                             </TouchableOpacity>
                                         </View>
                                         <View style={styles.newGridInfo}>
-                                            <Typography style={styles.newGridTitle} numberOfLines={1}>{item.title}</Typography>
-                                            <Typography style={styles.productPrice}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                            <Typography style={[styles.newGridTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                            <Typography style={[styles.productPrice, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
                                         </View>
                                     </TouchableOpacity>
                                 ))}
