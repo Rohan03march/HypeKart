@@ -12,7 +12,7 @@ const SLIDES = [
     {
         id: '1',
         title: 'Elevated\nStreetwear.',
-        description: 'Curated apparel from the worlds most exclusive brands.',
+        description: 'Curated streetwear from the worlds most exclusive brands.',
         image: require('../../../assets/images/welcome_slide_1.png'),
     },
     {

@@ -57,7 +57,6 @@ const CATEGORIES = [
     { id: '1', name: 'All' },
     { id: '2', name: 'Men' },
     { id: '3', name: 'Women' },
-    { id: '4', name: 'Apparel' },
     { id: '5', name: 'Footwear' },
     { id: '6', name: 'Accessories' },
 ];
@@ -86,14 +85,6 @@ const CAROUSEL_DATA = [
         tag: 'WOMENS',
         image: require('../../../assets/banners/banner_women.png'),
         categoryId: '3'
-    },
-    {
-        id: '4',
-        title: 'Apparel Drops',
-        subtitle: 'Premium tees, hoodies, and staples.',
-        tag: 'APPAREL',
-        image: require('../../../assets/banners/banner_apparel.png'),
-        categoryId: '4'
     },
     {
         id: '5',
@@ -125,6 +116,7 @@ export default function HomeScreen() {
     const [newArrivals, setNewArrivals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [activeGenderFilter, setActiveGenderFilter] = useState('All');
 
     // Search States
     const [isSearching, setIsSearching] = useState(false);
@@ -138,12 +130,18 @@ export default function HomeScreen() {
     const { getProducts, setProducts } = useCacheStore();
 
     useEffect(() => {
+        // Reset gender filter when category changes
+        setActiveGenderFilter('All');
         fetchProducts();
     }, [activeCategory]);
 
     useEffect(() => {
-        fetchProducts();
-    }, [activeCategory]);
+        // Fetch products when gender filter changes but only if category is Footwear or Accessories
+        const cat = CATEGORIES.find(c => c.id === activeCategory);
+        if (cat && (cat.name === 'Footwear' || cat.name === 'Accessories')) {
+            fetchProducts();
+        }
+    }, [activeGenderFilter]);
 
     useEffect(() => {
         checkLocation();
@@ -286,7 +284,13 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: true })
                 .limit(6);
 
-            if (!isAll) { trendingQuery = trendingQuery.eq('category', selectedCat.name); }
+            if (!isAll) {
+                if ((selectedCat.name === 'Footwear' || selectedCat.name === 'Accessories') && activeGenderFilter !== 'All') {
+                    trendingQuery = trendingQuery.ilike('category', `${selectedCat.name} - ${activeGenderFilter}%`);
+                } else {
+                    trendingQuery = trendingQuery.ilike('category', `${selectedCat.name}%`);
+                }
+            }
             const { data: trendingData, error: trendingError } = await trendingQuery;
 
             // Fetch New Drops
@@ -297,7 +301,13 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: false })
                 .limit(4);
 
-            if (!isAll) { newQuery = newQuery.eq('category', selectedCat.name); }
+            if (!isAll) {
+                if ((selectedCat.name === 'Footwear' || selectedCat.name === 'Accessories') && activeGenderFilter !== 'All') {
+                    newQuery = newQuery.ilike('category', `${selectedCat.name} - ${activeGenderFilter}%`);
+                } else {
+                    newQuery = newQuery.ilike('category', `${selectedCat.name}%`);
+                }
+            }
             const { data: newData, error: newError } = await newQuery;
 
             if (!trendingError && trendingData) setTrendingProducts(trendingData);
@@ -422,7 +432,7 @@ export default function HomeScreen() {
                             {searchQuery.trim() === '' ? (
                                 <View style={{ padding: 40, alignItems: 'center' }}>
                                     <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
-                                    <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, apparel...</Typography>
+                                    <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, streetwear...</Typography>
                                 </View>
                             ) : isSearchLoading ? (
                                 <ActivityIndicator color={textColor} style={{ marginTop: 40 }} />
@@ -524,6 +534,40 @@ export default function HomeScreen() {
                                     );
                                 })}
                             </ScrollView>
+
+                            {/* Optional Gender Sub-Filter for Footwear and Accessories */}
+                            {(activeCategory === '5' || activeCategory === '6') && (
+                                <View style={{ flexDirection: 'row', paddingHorizontal: 24, marginBottom: 28, gap: 12 }}>
+                                    {['All', 'Men', 'Women'].map(gender => {
+                                        const isActive = activeGenderFilter === gender;
+                                        // Sleek pill design for sub-filters
+                                        const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                                        const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                                        const txtCol = isActive ? bgColor : subtextColor;
+                                        return (
+                                            <TouchableOpacity
+                                                key={gender}
+                                                onPress={() => setActiveGenderFilter(gender)}
+                                                style={{
+                                                    paddingHorizontal: 20,
+                                                    paddingVertical: 8,
+                                                    borderRadius: 20,
+                                                    borderWidth: 1,
+                                                    borderColor: borderCol,
+                                                    backgroundColor: bgCol,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    minWidth: 70
+                                                }}
+                                            >
+                                                <Typography style={{ fontSize: 13, fontWeight: isActive ? '700' : '500', color: txtCol, letterSpacing: 0.5 }}>
+                                                    {gender}
+                                                </Typography>
+                                            </TouchableOpacity>
+                                        )
+                                    })}
+                                </View>
+                            )}
 
                             {/* Trending Now */}
                             <View style={styles.sectionHeader}>

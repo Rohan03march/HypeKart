@@ -289,7 +289,7 @@ export default function ProductDetailsScreen() {
                                         style={[styles.modalTab, sizeCategory === 'apparel' && { backgroundColor: isDarkMode ? '#555' : '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }]}
                                         onPress={() => setSizeCategory('apparel')}
                                     >
-                                        <Typography style={[styles.modalTabText, { color: sizeCategory === 'apparel' ? textColor : subtextColor }]}>Apparel</Typography>
+                                        <Typography style={[styles.modalTabText, { color: sizeCategory === 'apparel' ? textColor : subtextColor }]}>Clothing</Typography>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.modalTab, sizeCategory === 'footwear' && { backgroundColor: isDarkMode ? '#555' : '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }]}

@@ -28,9 +28,11 @@ export default function CatalogScreen() {
     const cardBgColor = isDarkMode ? '#1e1e1e' : '#f5f5f5';
     const borderColor = isDarkMode ? '#333' : '#f0f0f0';
 
+    const [activeGenderFilter, setActiveGenderFilter] = useState('All');
+
     useEffect(() => {
         fetchProducts();
-    }, [action]);
+    }, [action, route.params?.categoryName, activeGenderFilter]);
 
     const fetchProducts = async () => {
         setIsLoading(true);
@@ -44,7 +46,11 @@ export default function CatalogScreen() {
             } else if (action === 'category') {
                 const categoryName = route.params?.categoryName;
                 if (categoryName && categoryName !== 'All') {
-                    query = query.eq('category', categoryName).order('created_at', { ascending: false }).limit(50);
+                    if ((categoryName === 'Footwear' || categoryName === 'Accessories') && activeGenderFilter !== 'All') {
+                        query = query.ilike('category', `${categoryName} - ${activeGenderFilter}%`).order('created_at', { ascending: false }).limit(50);
+                    } else {
+                        query = query.ilike('category', `${categoryName}%`).order('created_at', { ascending: false }).limit(50);
+                    }
                 } else {
                     query = query.order('created_at', { ascending: false }).limit(50);
                 }
@@ -78,6 +84,38 @@ export default function CatalogScreen() {
                     <Typography style={[styles.headerTitle, { color: textColor }]}>{title}</Typography>
                     <View style={{ width: 44 }} />
                 </View>
+
+                {action === 'category' && (route.params?.categoryName === 'Footwear' || route.params?.categoryName === 'Accessories') && (
+                    <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 12, borderBottomWidth: 1, borderBottomColor: borderColor, backgroundColor: cardBgColor }}>
+                        {['All', 'Men', 'Women'].map(gender => {
+                            const isActive = activeGenderFilter === gender;
+                            const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                            const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                            const txtCol = isActive ? bgColor : subtextColor;
+                            return (
+                                <TouchableOpacity
+                                    key={gender}
+                                    onPress={() => setActiveGenderFilter(gender)}
+                                    style={{
+                                        paddingHorizontal: 20,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor: borderCol,
+                                        backgroundColor: bgCol,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: 70
+                                    }}
+                                >
+                                    <Typography style={{ fontSize: 13, fontWeight: isActive ? '700' : '500', color: txtCol, letterSpacing: 0.5 }}>
+                                        {gender}
+                                    </Typography>
+                                </TouchableOpacity>
+                            )
+                        })}
+                    </View>
+                )}
 
                 {isLoading ? (
                     <ActivityIndicator color={textColor} style={{ flex: 1 }} />
