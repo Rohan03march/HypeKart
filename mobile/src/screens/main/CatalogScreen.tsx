@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -28,32 +28,51 @@ export default function CatalogScreen() {
     const cardBgColor = isDarkMode ? '#1e1e1e' : '#f5f5f5';
     const borderColor = isDarkMode ? '#333' : '#f0f0f0';
 
-    const [activeGenderFilter, setActiveGenderFilter] = useState('All');
+    const [activeSubCategory, setActiveSubCategory] = useState('All');
+    const [activeItemType, setActiveItemType] = useState('All');
+    const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+
+    useEffect(() => {
+        setActiveSubCategory('All');
+        setActiveItemType('All');
+    }, [action, route.params?.categoryName]);
 
     useEffect(() => {
         fetchProducts();
-    }, [action, route.params?.categoryName, activeGenderFilter]);
+    }, [action, route.params?.categoryName, activeSubCategory, activeItemType]);
 
     const fetchProducts = async () => {
         setIsLoading(true);
         try {
             let query = supabase.from('products').select('*');
 
-            if (action === 'trending') {
-                query = query.order('created_at', { ascending: true }).limit(50);
-            } else if (action === 'new_arrivals') {
-                query = query.eq('is_new_arrival', true).order('created_at', { ascending: false }).limit(50);
-            } else if (action === 'category') {
-                const categoryName = route.params?.categoryName;
-                if (categoryName && categoryName !== 'All') {
-                    if ((categoryName === 'Footwear' || categoryName === 'Accessories') && activeGenderFilter !== 'All') {
-                        query = query.ilike('category', `${categoryName} - ${activeGenderFilter}%`).order('created_at', { ascending: false }).limit(50);
-                    } else {
-                        query = query.ilike('category', `${categoryName}%`).order('created_at', { ascending: false }).limit(50);
-                    }
-                } else {
-                    query = query.order('created_at', { ascending: false }).limit(50);
+            let categoryFilter = '';
+            const categoryName = route.params?.categoryName;
+
+            // Allow general filtering to apply even if it's Trending/New Arrivals if we want to pass a categoryName through navigation later
+            if (categoryName && categoryName !== 'All') {
+                categoryFilter = `${categoryName}`;
+                if (activeSubCategory !== 'All') {
+                    categoryFilter += ` - ${activeSubCategory}`;
                 }
+                if (categoryName === 'Oversize' && activeSubCategory !== 'All' && activeItemType !== 'All') {
+                    categoryFilter += ` - ${activeItemType}`;
+                }
+            }
+
+            if (action === 'trending') {
+                query = query.order('created_at', { ascending: true });
+                if (categoryFilter) query = query.ilike('category', `${categoryFilter}%`);
+                query = query.limit(50);
+            } else if (action === 'new_arrivals') {
+                query = query.eq('is_new_arrival', true).order('created_at', { ascending: false });
+                if (categoryFilter) query = query.ilike('category', `${categoryFilter}%`);
+                query = query.limit(50);
+            } else if (action === 'category') {
+                if (categoryFilter) {
+                    query = query.ilike('category', `${categoryFilter}%`);
+                }
+                query = query.order('created_at', { ascending: false }).limit(50);
             } else {
                 query = query.order('created_at', { ascending: false }).limit(50);
             }
@@ -82,40 +101,117 @@ export default function CatalogScreen() {
                         <Ionicons name="arrow-back" size={24} color={textColor} />
                     </TouchableOpacity>
                     <Typography style={[styles.headerTitle, { color: textColor }]}>{title}</Typography>
-                    <View style={{ width: 44 }} />
+                    {(action === 'category' || action === 'trending' || action === 'new_arrivals') && route.params?.categoryName && route.params?.categoryName !== 'All' && route.params?.categoryName !== '1' ? (
+                        <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={styles.backBtn}>
+                            <Ionicons name="options-outline" size={24} color={textColor} />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={{ width: 44 }} />
+                    )}
                 </View>
 
-                {action === 'category' && (route.params?.categoryName === 'Footwear' || route.params?.categoryName === 'Accessories') && (
-                    <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 12, borderBottomWidth: 1, borderBottomColor: borderColor, backgroundColor: cardBgColor }}>
-                        {['All', 'Men', 'Women'].map(gender => {
-                            const isActive = activeGenderFilter === gender;
-                            const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
-                            const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
-                            const txtCol = isActive ? bgColor : subtextColor;
-                            return (
-                                <TouchableOpacity
-                                    key={gender}
-                                    onPress={() => setActiveGenderFilter(gender)}
-                                    style={{
-                                        paddingHorizontal: 20,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor: borderCol,
-                                        backgroundColor: bgCol,
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        minWidth: 70
-                                    }}
-                                >
-                                    <Typography style={{ fontSize: 13, fontWeight: isActive ? '700' : '500', color: txtCol, letterSpacing: 0.5 }}>
-                                        {gender}
-                                    </Typography>
+                {/* Filter Modal */}
+                <Modal visible={isFilterModalVisible} animationType="slide" transparent={true} onRequestClose={() => setIsFilterModalVisible(false)}>
+                    <TouchableOpacity
+                        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}
+                        activeOpacity={1}
+                        onPress={() => setIsFilterModalVisible(false)}
+                    >
+                        <View style={{ backgroundColor: bgColor, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }} onStartShouldSetResponder={() => true}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                <Typography style={{ fontSize: 20, fontWeight: '700', color: textColor }}>Filters</Typography>
+                                <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color={textColor} />
                                 </TouchableOpacity>
-                            )
-                        })}
-                    </View>
-                )}
+                            </View>
+
+                            {/* SubCategory Selection */}
+                            <Typography style={{ fontSize: 16, fontWeight: '600', color: textColor, marginBottom: 12 }}>Subcategory</Typography>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                                {(() => {
+                                    let subCats: string[] = [];
+                                    const mainCat = route.params?.categoryName;
+
+                                    // If no categoryName was passed down (like standard Trending/New Arrivals landing pages), provide general options if they want them...
+                                    // Or since the user only wanted it visible when an active category is set, we use the fallback
+                                    if (!mainCat || mainCat === 'All' || mainCat === '1') return subCats;
+
+                                    if (mainCat === 'Men' || mainCat === 'Women') subCats = ['All', 'Top', 'Bottoms', 'Footwear', 'Accessories'];
+                                    else if (mainCat === 'Kids') subCats = ['All', 'Boy', 'Girl'];
+                                    else if (mainCat === 'Oversize') subCats = ['All', 'Men', 'Women'];
+                                    return subCats;
+                                })().map(subCat => {
+                                    const isActive = activeSubCategory === subCat;
+                                    const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                                    const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                                    const txtCol = isActive ? bgColor : subtextColor;
+                                    return (
+                                        <TouchableOpacity
+                                            key={subCat}
+                                            onPress={() => {
+                                                setActiveSubCategory(subCat);
+                                                setActiveItemType('All');
+                                            }}
+                                            style={{
+                                                paddingHorizontal: 20,
+                                                paddingVertical: 10,
+                                                borderRadius: 20,
+                                                borderWidth: 1,
+                                                borderColor: borderCol,
+                                                backgroundColor: bgCol,
+                                            }}
+                                        >
+                                            <Typography style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: txtCol }}>
+                                                {subCat}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    )
+                                })}
+                            </View>
+
+                            {/* ItemType Selection for Oversize */}
+                            {route.params?.categoryName === 'Oversize' && activeSubCategory !== 'All' && (
+                                <>
+                                    <Typography style={{ fontSize: 16, fontWeight: '600', color: textColor, marginBottom: 12 }}>Type</Typography>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                                        {['All', 'Top', 'Bottoms', 'Footwear', 'Accessories'].map(item => {
+                                            const isActive = activeItemType === item;
+                                            const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                                            const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                                            const txtCol = isActive ? bgColor : subtextColor;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={item}
+                                                    onPress={() => setActiveItemType(item)}
+                                                    style={{
+                                                        paddingHorizontal: 20,
+                                                        paddingVertical: 10,
+                                                        borderRadius: 20,
+                                                        borderWidth: 1,
+                                                        borderColor: borderCol,
+                                                        backgroundColor: bgCol,
+                                                    }}
+                                                >
+                                                    <Typography style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: txtCol }}>
+                                                        {item}
+                                                    </Typography>
+                                                </TouchableOpacity>
+                                            )
+                                        })}
+                                    </View>
+                                </>
+                            )}
+
+                            {/* Apply Button */}
+                            <TouchableOpacity
+                                onPress={() => setIsFilterModalVisible(false)}
+                                style={{ backgroundColor: textColor, paddingVertical: 16, borderRadius: 100, alignItems: 'center', marginTop: 8 }}
+                            >
+                                <Typography style={{ color: bgColor, fontWeight: '700', fontSize: 16 }}>Show results</Typography>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
 
                 {isLoading ? (
                     <ActivityIndicator color={textColor} style={{ flex: 1 }} />

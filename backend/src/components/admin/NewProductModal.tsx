@@ -22,8 +22,9 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
         stock: "10",
         sizes: "S, M, L",
         colors: "Black, White",
-        category: "Men",
-        gender: "All", // For Footwear and Accessories
+        mainCategory: "Men",
+        subCategory: "Top",
+        itemType: "Top",
     });
 
     type ImageAsset = { type: 'file', file: File, preview: string } | { type: 'url', url: string };
@@ -75,9 +76,9 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
             const sizesList = formData.sizes.split(',').map(s => s.trim()).filter(Boolean);
             const colorsList = formData.colors.split(',').map(c => c.trim()).filter(Boolean);
 
-            const finalCategory = (formData.category === 'Footwear' || formData.category === 'Accessories')
-                ? `${formData.category} - ${formData.gender}`
-                : formData.category;
+            const finalCategory = formData.mainCategory === 'Oversize'
+                ? `${formData.mainCategory} - ${formData.subCategory} - ${formData.itemType}`
+                : `${formData.mainCategory} - ${formData.subCategory}`;
 
             const newProduct = {
                 title: formData.title,
@@ -94,7 +95,7 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
             await createProductAction(newProduct);
 
             // Reset state
-            setFormData({ title: "", description: "", base_price: "", stock: "10", sizes: "S, M, L", colors: "Black, White", category: "Men", gender: "All" });
+            setFormData({ title: "", description: "", base_price: "", stock: "10", sizes: "S, M, L", colors: "Black, White", mainCategory: "Men", subCategory: "Top", itemType: "Top" });
             setImages([]);
 
             router.refresh();
@@ -229,25 +230,61 @@ export default function NewProductModal({ isOpen, onClose }: NewProductModalProp
                             </div>
                             <div className="space-y-4 md:col-span-1">
                                 <div className="space-y-2">
-                                    <label htmlFor="category" className="text-sm font-semibold text-zinc-300 ml-1">Category</label>
+                                    <label htmlFor="mainCategory" className="text-sm font-semibold text-zinc-300 ml-1">Main Category</label>
                                     <div className="relative group/input">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><LinkIcon className="h-5 w-5 text-zinc-500 group-focus-within/input:text-white transition-colors" /></div>
-                                        <select id="category" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 pl-12 pr-4 outline-none font-medium appearance-none" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                                        <select id="mainCategory" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 pl-12 pr-4 outline-none font-medium appearance-none" value={formData.mainCategory} onChange={(e) => {
+                                            const newMain = e.target.value;
+                                            let newSub = "Top";
+                                            if (newMain === 'Kids') newSub = "Boy";
+                                            else if (newMain === 'Oversize') newSub = "Men";
+                                            setFormData({ ...formData, mainCategory: newMain, subCategory: newSub, itemType: "Top" });
+                                        }}>
                                             <option value="Men" className="bg-black text-white">Men</option>
                                             <option value="Women" className="bg-black text-white">Women</option>
-                                            <option value="Footwear" className="bg-black text-white">Footwear</option>
-                                            <option value="Accessories" className="bg-black text-white">Accessories</option>
+                                            <option value="Kids" className="bg-black text-white">Kids</option>
+                                            <option value="Oversize" className="bg-black text-white">Oversize</option>
                                         </select>
                                     </div>
                                 </div>
-                                {(formData.category === 'Footwear' || formData.category === 'Accessories') && (
+                                
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                    <label htmlFor="subCategory" className="text-sm font-semibold text-zinc-300 ml-1">
+                                        {formData.mainCategory === 'Kids' ? 'Gender' : formData.mainCategory === 'Oversize' ? 'Gender' : 'Category'}
+                                    </label>
+                                    <div className="relative group/input">
+                                        <select id="subCategory" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 px-4 outline-none font-medium appearance-none" value={formData.subCategory} onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}>
+                                            {formData.mainCategory === 'Kids' ? (
+                                                <>
+                                                    <option value="Boy" className="bg-black text-white">Boy</option>
+                                                    <option value="Girl" className="bg-black text-white">Girl</option>
+                                                </>
+                                            ) : formData.mainCategory === 'Oversize' ? (
+                                                <>
+                                                    <option value="Men" className="bg-black text-white">Men</option>
+                                                    <option value="Women" className="bg-black text-white">Women</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="Top" className="bg-black text-white">Top</option>
+                                                    <option value="Bottoms" className="bg-black text-white">Bottoms</option>
+                                                    <option value="Footwear" className="bg-black text-white">Footwear</option>
+                                                    <option value="Accessories" className="bg-black text-white">Accessories</option>
+                                                </>
+                                            )}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {formData.mainCategory === 'Oversize' && (
                                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                                        <label htmlFor="gender" className="text-sm font-semibold text-zinc-300 ml-1">Target Gender (Applies to {formData.category})</label>
+                                        <label htmlFor="itemType" className="text-sm font-semibold text-zinc-300 ml-1">Category</label>
                                         <div className="relative group/input">
-                                            <select id="gender" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 px-4 outline-none font-medium appearance-none" value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>
-                                                <option value="All" className="bg-black text-white">All (Unisex)</option>
-                                                <option value="Men" className="bg-black text-white">Men</option>
-                                                <option value="Women" className="bg-black text-white">Women</option>
+                                            <select id="itemType" required className="w-full bg-black/50 border border-white/10 hover:border-white/20 text-white placeholder:text-zinc-600 focus:ring-1 focus:ring-white focus:border-white transition-all rounded-2xl py-4 px-4 outline-none font-medium appearance-none" value={formData.itemType} onChange={(e) => setFormData({ ...formData, itemType: e.target.value })}>
+                                                <option value="Top" className="bg-black text-white">Top</option>
+                                                <option value="Bottoms" className="bg-black text-white">Bottoms</option>
+                                                <option value="Footwear" className="bg-black text-white">Footwear</option>
+                                                <option value="Accessories" className="bg-black text-white">Accessories</option>
                                             </select>
                                         </div>
                                     </div>

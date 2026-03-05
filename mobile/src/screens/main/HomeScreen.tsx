@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { View, ScrollView, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput, FlatList } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Dimensions, StyleSheet, ActivityIndicator, RefreshControl, TextInput, FlatList, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,8 +57,8 @@ const CATEGORIES = [
     { id: '1', name: 'All' },
     { id: '2', name: 'Men' },
     { id: '3', name: 'Women' },
-    { id: '5', name: 'Footwear' },
-    { id: '6', name: 'Accessories' },
+    { id: '4', name: 'Kids' },
+    { id: '5', name: 'Oversize' },
 ];
 
 const CAROUSEL_DATA = [
@@ -73,34 +73,34 @@ const CAROUSEL_DATA = [
     {
         id: '2',
         title: 'Menswear',
-        subtitle: 'Premium tactical gear and streetwear.',
+        subtitle: 'Premium streetwear & contemporary fits.',
         tag: 'MENS',
-        image: require('../../../assets/banners/banner_men.png'),
+        image: require('../../../assets/banners/carousel_men.png'),
         categoryId: '2'
     },
     {
         id: '3',
         title: 'Womenswear',
-        subtitle: 'Luxury outerwear and modern pieces.',
+        subtitle: 'Trendy elegant casual wear.',
         tag: 'WOMENS',
-        image: require('../../../assets/banners/banner_women.png'),
+        image: require('../../../assets/banners/carousel_women.png'),
         categoryId: '3'
     },
     {
-        id: '5',
-        title: 'Exclusive Footwear',
-        subtitle: 'Limited sneaker drops and hype kicks.',
-        tag: 'FOOTWEAR',
-        image: require('../../../assets/banners/banner2.png'),
-        categoryId: '5'
+        id: '4',
+        title: 'Kids Collection',
+        subtitle: 'Playful & stylish streetwear.',
+        tag: 'KIDS',
+        image: require('../../../assets/banners/carousel_kids.png'),
+        categoryId: '4'
     },
     {
-        id: '6',
-        title: 'The Accessories',
-        subtitle: 'Technical gear and luxury lifestyle.',
-        tag: 'ACCESSORIES',
-        image: require('../../../assets/banners/banner3.png'),
-        categoryId: '6'
+        id: '5',
+        title: 'Oversize Fit',
+        subtitle: 'Premium heavyweight baggy style.',
+        tag: 'OVERSIZE',
+        image: require('../../../assets/banners/carousel_oversize.png'),
+        categoryId: '5'
     }
 ];
 
@@ -116,7 +116,9 @@ export default function HomeScreen() {
     const [newArrivals, setNewArrivals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [activeGenderFilter, setActiveGenderFilter] = useState('All');
+    const [activeSubCategory, setActiveSubCategory] = useState('All');
+    const [activeItemType, setActiveItemType] = useState('All');
+    const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
     // Search States
     const [isSearching, setIsSearching] = useState(false);
@@ -130,18 +132,14 @@ export default function HomeScreen() {
     const { getProducts, setProducts } = useCacheStore();
 
     useEffect(() => {
-        // Reset gender filter when category changes
-        setActiveGenderFilter('All');
+        setActiveSubCategory('All');
+        setActiveItemType('All');
         fetchProducts();
     }, [activeCategory]);
 
     useEffect(() => {
-        // Fetch products when gender filter changes but only if category is Footwear or Accessories
-        const cat = CATEGORIES.find(c => c.id === activeCategory);
-        if (cat && (cat.name === 'Footwear' || cat.name === 'Accessories')) {
-            fetchProducts();
-        }
-    }, [activeGenderFilter]);
+        fetchProducts();
+    }, [activeSubCategory, activeItemType]);
 
     useEffect(() => {
         checkLocation();
@@ -285,11 +283,15 @@ export default function HomeScreen() {
                 .limit(6);
 
             if (!isAll) {
-                if ((selectedCat.name === 'Footwear' || selectedCat.name === 'Accessories') && activeGenderFilter !== 'All') {
-                    trendingQuery = trendingQuery.ilike('category', `${selectedCat.name} - ${activeGenderFilter}%`);
-                } else {
-                    trendingQuery = trendingQuery.ilike('category', `${selectedCat.name}%`);
+                let categoryFilter = `${selectedCat.name}`;
+                if (activeSubCategory !== 'All') {
+                    categoryFilter += ` - ${activeSubCategory}`;
                 }
+                if (selectedCat.name === 'Oversize' && activeSubCategory !== 'All' && activeItemType !== 'All') {
+                    categoryFilter += ` - ${activeItemType}`;
+                }
+
+                trendingQuery = trendingQuery.ilike('category', `${categoryFilter}%`);
             }
             const { data: trendingData, error: trendingError } = await trendingQuery;
 
@@ -302,11 +304,15 @@ export default function HomeScreen() {
                 .limit(4);
 
             if (!isAll) {
-                if ((selectedCat.name === 'Footwear' || selectedCat.name === 'Accessories') && activeGenderFilter !== 'All') {
-                    newQuery = newQuery.ilike('category', `${selectedCat.name} - ${activeGenderFilter}%`);
-                } else {
-                    newQuery = newQuery.ilike('category', `${selectedCat.name}%`);
+                let categoryFilter = `${selectedCat.name}`;
+                if (activeSubCategory !== 'All') {
+                    categoryFilter += ` - ${activeSubCategory}`;
                 }
+                if (selectedCat.name === 'Oversize' && activeSubCategory !== 'All' && activeItemType !== 'All') {
+                    categoryFilter += ` - ${activeItemType}`;
+                }
+
+                newQuery = newQuery.ilike('category', `${categoryFilter}%`);
             }
             const { data: newData, error: newError } = await newQuery;
 
@@ -384,10 +390,10 @@ export default function HomeScreen() {
                         </View>
                     ) : (
                         <>
-                            <View style={{ flex: 1, paddingRight: 16 }}>
+                            <View style={{ flex: 1, paddingRight: 16, overflow: 'hidden' }}>
                                 <Typography style={[styles.logoText, { color: textColor }]}>HYPEKART</Typography>
                                 <TouchableOpacity
-                                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, width: '100%' }}
                                     onPress={() => navigation.navigate('ShippingAddress')}
                                     activeOpacity={0.7}
                                 >
@@ -512,7 +518,7 @@ export default function HomeScreen() {
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
-                                style={styles.categoriesScroll}
+                                style={[styles.categoriesScroll, { marginBottom: activeCategory !== '1' ? 16 : 36 }]}
                                 contentContainerStyle={styles.categoriesContainer}
                             >
                                 {CATEGORIES.map((cat) => {
@@ -535,46 +541,123 @@ export default function HomeScreen() {
                                 })}
                             </ScrollView>
 
-                            {/* Optional Gender Sub-Filter for Footwear and Accessories */}
-                            {(activeCategory === '5' || activeCategory === '6') && (
-                                <View style={{ flexDirection: 'row', paddingHorizontal: 24, marginBottom: 28, gap: 12 }}>
-                                    {['All', 'Men', 'Women'].map(gender => {
-                                        const isActive = activeGenderFilter === gender;
-                                        // Sleek pill design for sub-filters
-                                        const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
-                                        const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
-                                        const txtCol = isActive ? bgColor : subtextColor;
-                                        return (
-                                            <TouchableOpacity
-                                                key={gender}
-                                                onPress={() => setActiveGenderFilter(gender)}
-                                                style={{
-                                                    paddingHorizontal: 20,
-                                                    paddingVertical: 8,
-                                                    borderRadius: 20,
-                                                    borderWidth: 1,
-                                                    borderColor: borderCol,
-                                                    backgroundColor: bgCol,
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    minWidth: 70
-                                                }}
-                                            >
-                                                <Typography style={{ fontSize: 13, fontWeight: isActive ? '700' : '500', color: txtCol, letterSpacing: 0.5 }}>
-                                                    {gender}
-                                                </Typography>
+
+
+                            {/* SubCategory Modal */}
+                            <Modal visible={isFilterModalVisible} animationType="slide" transparent={true} onRequestClose={() => setIsFilterModalVisible(false)}>
+                                <TouchableOpacity
+                                    style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}
+                                    activeOpacity={1}
+                                    onPress={() => setIsFilterModalVisible(false)}
+                                >
+                                    <View style={{ backgroundColor: bgColor, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }} onStartShouldSetResponder={() => true}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                            <Typography style={{ fontSize: 20, fontWeight: '700', color: textColor }}>Filters</Typography>
+                                            <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
+                                                <Ionicons name="close" size={24} color={textColor} />
                                             </TouchableOpacity>
-                                        )
-                                    })}
-                                </View>
-                            )}
+                                        </View>
+
+                                        {/* SubCategory Selection */}
+                                        <Typography style={{ fontSize: 16, fontWeight: '600', color: textColor, marginBottom: 12 }}>Subcategory</Typography>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                                            {(() => {
+                                                let subCats: string[] = [];
+                                                if (activeCategory === '2' || activeCategory === '3') subCats = ['All', 'Top', 'Bottoms', 'Footwear', 'Accessories'];
+                                                else if (activeCategory === '4') subCats = ['All', 'Boy', 'Girl'];
+                                                else if (activeCategory === '5') subCats = ['All', 'Men', 'Women'];
+                                                return subCats;
+                                            })().map(subCat => {
+                                                const isActive = activeSubCategory === subCat;
+                                                const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                                                const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                                                const txtCol = isActive ? bgColor : subtextColor;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={subCat}
+                                                        onPress={() => {
+                                                            setActiveSubCategory(subCat);
+                                                            setActiveItemType('All');
+                                                        }}
+                                                        style={{
+                                                            paddingHorizontal: 20,
+                                                            paddingVertical: 10,
+                                                            borderRadius: 20,
+                                                            borderWidth: 1,
+                                                            borderColor: borderCol,
+                                                            backgroundColor: bgCol,
+                                                        }}
+                                                    >
+                                                        <Typography style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: txtCol }}>
+                                                            {subCat}
+                                                        </Typography>
+                                                    </TouchableOpacity>
+                                                )
+                                            })}
+                                        </View>
+
+                                        {/* ItemType Selection for Oversize */}
+                                        {activeCategory === '5' && activeSubCategory !== 'All' && (
+                                            <>
+                                                <Typography style={{ fontSize: 16, fontWeight: '600', color: textColor, marginBottom: 12 }}>Type</Typography>
+                                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                                                    {['All', 'Top', 'Bottoms', 'Footwear', 'Accessories'].map(item => {
+                                                        const isActive = activeItemType === item;
+                                                        const borderCol = isActive ? textColor : (isDarkMode ? '#333' : '#e5e5e5');
+                                                        const bgCol = isActive ? textColor : (isDarkMode ? '#1a1a1a' : '#fff');
+                                                        const txtCol = isActive ? bgColor : subtextColor;
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={item}
+                                                                onPress={() => setActiveItemType(item)}
+                                                                style={{
+                                                                    paddingHorizontal: 20,
+                                                                    paddingVertical: 10,
+                                                                    borderRadius: 20,
+                                                                    borderWidth: 1,
+                                                                    borderColor: borderCol,
+                                                                    backgroundColor: bgCol,
+                                                                }}
+                                                            >
+                                                                <Typography style={{ fontSize: 14, fontWeight: isActive ? '700' : '500', color: txtCol }}>
+                                                                    {item}
+                                                                </Typography>
+                                                            </TouchableOpacity>
+                                                        )
+                                                    })}
+                                                </View>
+                                            </>
+                                        )}
+
+                                        {/* Apply Button */}
+                                        <TouchableOpacity
+                                            onPress={() => setIsFilterModalVisible(false)}
+                                            style={{ backgroundColor: textColor, paddingVertical: 16, borderRadius: 100, alignItems: 'center', marginTop: 8 }}
+                                        >
+                                            <Typography style={{ color: bgColor, fontWeight: '700', fontSize: 16 }}>Show results</Typography>
+                                        </TouchableOpacity>
+                                    </View>
+                                </TouchableOpacity>
+                            </Modal>
+
+
 
                             {/* Trending Now */}
                             <View style={styles.sectionHeader}>
                                 <Typography style={[styles.sectionTitle, { color: textColor }]}>Trending</Typography>
-                                <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'Trending', action: 'trending' })}>
-                                    <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
-                                </TouchableOpacity>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                    {activeCategory !== '1' && (
+                                        <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="options-outline" size={20} color={textColor} />
+                                            {(activeSubCategory !== 'All' || activeItemType !== 'All') && (
+                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: textColor, marginLeft: 2, marginTop: -8 }} />
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'Trending', action: 'trending' })}>
+                                        <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
 
                             {isLoading ? (
@@ -608,9 +691,19 @@ export default function HomeScreen() {
                             {/* New Arrivals Grid */}
                             <View style={styles.sectionHeader}>
                                 <Typography style={[styles.sectionTitle, { color: textColor }]}>New Arrivals</Typography>
-                                <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals' })}>
-                                    <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
-                                </TouchableOpacity>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                    {activeCategory !== '1' && (
+                                        <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="options-outline" size={20} color={textColor} />
+                                            {(activeSubCategory !== 'All' || activeItemType !== 'All') && (
+                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: textColor, marginLeft: 2, marginTop: -8 }} />
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals' })}>
+                                        <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
 
                             <View style={styles.newGrid}>
@@ -682,7 +775,7 @@ const styles = StyleSheet.create({
     searchHeaderContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: '100%',
+        flex: 1,
         gap: 12,
     },
     searchInputContainer: {
