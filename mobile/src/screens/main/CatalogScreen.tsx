@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Modal } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Modal, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -19,6 +19,11 @@ export default function CatalogScreen() {
 
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const PAGE_SIZE = 20;
     const { toggle, isWishlisted } = useWishlistStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
 
@@ -41,16 +46,32 @@ export default function CatalogScreen() {
         fetchProducts();
     }, [action, route.params?.categoryName, activeSubCategory, activeItemType]);
 
-    const fetchProducts = async () => {
-        setIsLoading(true);
+    const fetchProducts = async (isLoadMore = false, isRefresh = false) => {
+        if (isRefresh) {
+            setIsRefreshing(true);
+            setPage(0);
+            setHasMore(true);
+        } else if (isLoadMore) {
+            if (!hasMore || isLoadingMore) return;
+            setIsLoadingMore(true);
+        } else {
+            setIsLoading(true);
+            setPage(0);
+            setHasMore(true);
+        }
+
         try {
+            const currentPage = isLoadMore ? page + 1 : 0;
+            const from = currentPage * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
             let query = supabase.from('products').select('*');
 
             let categoryFilter = '';
             const categoryName = route.params?.categoryName;
 
             // Allow general filtering to apply even if it's Trending/New Arrivals if we want to pass a categoryName through navigation later
-            if (categoryName && categoryName !== 'All') {
+            if (categoryName && categoryName !== 'All' && categoryName !== '1') {
                 categoryFilter = `${categoryName}`;
                 if (activeSubCategory !== 'All') {
                     categoryFilter += ` - ${activeSubCategory}`;
@@ -58,33 +79,71 @@ export default function CatalogScreen() {
                 if (categoryName === 'Oversize' && activeSubCategory !== 'All' && activeItemType !== 'All') {
                     categoryFilter += ` - ${activeItemType}`;
                 }
+            } else {
+                if (activeSubCategory !== 'All') {
+                    categoryFilter = activeSubCategory;
+                }
             }
 
             if (action === 'trending') {
                 query = query.order('created_at', { ascending: true });
-                if (categoryFilter) query = query.ilike('category', `${categoryFilter}%`);
-                query = query.limit(50);
+                if (categoryFilter) {
+                    if (categoryName && categoryName !== 'All' && categoryName !== '1') {
+                        query = query.ilike('category', `${categoryFilter}%`);
+                    } else {
+                        query = query.ilike('category', `%${categoryFilter}%`);
+                    }
+                }
             } else if (action === 'new_arrivals') {
                 query = query.eq('is_new_arrival', true).order('created_at', { ascending: false });
-                if (categoryFilter) query = query.ilike('category', `${categoryFilter}%`);
-                query = query.limit(50);
+                if (categoryFilter) {
+                    if (categoryName && categoryName !== 'All' && categoryName !== '1') {
+                        query = query.ilike('category', `${categoryFilter}%`);
+                    } else {
+                        query = query.ilike('category', `%${categoryFilter}%`);
+                    }
+                }
             } else if (action === 'category') {
                 if (categoryFilter) {
-                    query = query.ilike('category', `${categoryFilter}%`);
+                    if (categoryName && categoryName !== 'All' && categoryName !== '1') {
+                        query = query.ilike('category', `${categoryFilter}%`);
+                    } else {
+                        query = query.ilike('category', `%${categoryFilter}%`);
+                    }
                 }
-                query = query.order('created_at', { ascending: false }).limit(50);
+                query = query.order('created_at', { ascending: false });
             } else {
-                query = query.order('created_at', { ascending: false }).limit(50);
+                query = query.order('created_at', { ascending: false });
             }
+
+            query = query.range(from, to);
 
             const { data, error } = await query;
             if (!error && data) {
-                setProducts(data);
+                if (isLoadMore) {
+                    setProducts(prev => [...prev, ...data]);
+                } else {
+                    setProducts(data);
+                }
+
+                if (data.length < PAGE_SIZE) {
+                    setHasMore(false);
+                }
+                if ((isLoadMore || isRefresh) && data.length > 0) {
+                    setPage(currentPage);
+                }
             }
         } catch (error) {
             console.error(error);
         } finally {
-            setIsLoading(false);
+            if (isRefresh) {
+                setIsRefreshing(false);
+            }
+            if (isLoadMore) {
+                setIsLoadingMore(false);
+            } else if (!isRefresh) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -101,7 +160,7 @@ export default function CatalogScreen() {
                         <Ionicons name="arrow-back" size={24} color={textColor} />
                     </TouchableOpacity>
                     <Typography style={[styles.headerTitle, { color: textColor }]}>{title}</Typography>
-                    {(action === 'category' || action === 'trending' || action === 'new_arrivals') && route.params?.categoryName && route.params?.categoryName !== 'All' && route.params?.categoryName !== '1' ? (
+                    {['category', 'trending', 'new_arrivals'].includes(action) ? (
                         <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={styles.backBtn}>
                             <Ionicons name="options-outline" size={24} color={textColor} />
                         </TouchableOpacity>
@@ -133,8 +192,7 @@ export default function CatalogScreen() {
                                     const mainCat = route.params?.categoryName;
 
                                     // If no categoryName was passed down (like standard Trending/New Arrivals landing pages), provide general options if they want them...
-                                    // Or since the user only wanted it visible when an active category is set, we use the fallback
-                                    if (!mainCat || mainCat === 'All' || mainCat === '1') return subCats;
+                                    if (!mainCat || mainCat === 'All' || mainCat === '1') return ['All', 'Men', 'Women', 'Kids', 'Oversize', 'Footwear', 'Accessories'];
 
                                     if (mainCat === 'Men' || mainCat === 'Women') subCats = ['All', 'Top', 'Bottoms', 'Footwear', 'Accessories'];
                                     else if (mainCat === 'Kids') subCats = ['All', 'Boy', 'Girl'];
@@ -213,46 +271,89 @@ export default function CatalogScreen() {
                     </TouchableOpacity>
                 </Modal>
 
-                {isLoading ? (
+                {isLoading && !products.length ? (
                     <ActivityIndicator color={textColor} style={{ flex: 1 }} />
                 ) : (
-                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <View style={styles.grid}>
-                            {products.map((item) => (
-                                <TouchableOpacity key={item.id} style={styles.gridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                    <View style={[styles.imgWrapper, { backgroundColor: cardBgColor }]}>
-                                        <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.img} resizeMode="cover" />
-                                        <TouchableOpacity
-                                            onPress={(e) => {
-                                                e.stopPropagation();
-                                                toggle({
-                                                    id: item.id,
-                                                    title: item.title,
-                                                    brand: item.brand || 'HYPEKART',
-                                                    price: item.base_price,
-                                                    image: getPrimaryImage(item.images),
-                                                    images: item.images,
-                                                });
-                                            }}
-                                            style={styles.heartBtn}
-                                        >
-                                            <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-                                            <Ionicons
-                                                name={isWishlisted(item.id) ? 'heart' : 'heart-outline'}
-                                                size={18}
-                                                color={isWishlisted(item.id) ? '#ff4b4b' : '#fff'}
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-                                    <View style={styles.info}>
-                                        <Typography style={[styles.brand, { color: subtextColor }]}>{item.brand || 'HYPEKART'}</Typography>
-                                        <Typography style={[styles.itemTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
-                                        <Typography style={[styles.price, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </ScrollView>
+                    <FlatList
+                        data={products}
+                        keyExtractor={(item, index) => `${item.id}-${index}`}
+                        numColumns={2}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.scrollContent}
+                        columnWrapperStyle={{ justifyContent: 'space-between' }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={() => fetchProducts(false, true)}
+                                tintColor={textColor}
+                                colors={[textColor]}
+                            />
+                        }
+                        onEndReached={() => {
+                            if (hasMore && !isLoading && !isLoadingMore) {
+                                fetchProducts(true);
+                            }
+                        }}
+                        onEndReachedThreshold={0.5}
+                        ListFooterComponent={
+                            isLoadingMore ? (
+                                <View style={{ paddingVertical: 20 }}>
+                                    <ActivityIndicator color={textColor} />
+                                </View>
+                            ) : null
+                        }
+                        ListEmptyComponent={
+                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+                                <Ionicons name="shirt-outline" size={64} color={subtextColor} style={{ marginBottom: 16 }} />
+                                <Typography style={{ fontSize: 18, color: textColor, fontWeight: '600' }}>No products found</Typography>
+                                <Typography style={{ fontSize: 14, color: subtextColor, marginTop: 8, textAlign: 'center' }}>We couldn't find any items matching your current filters.</Typography>
+                                {(activeSubCategory !== 'All' || activeItemType !== 'All') && (
+                                    <TouchableOpacity
+                                        style={{ marginTop: 24, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 100, backgroundColor: textColor }}
+                                        onPress={() => {
+                                            setActiveSubCategory('All');
+                                            setActiveItemType('All');
+                                        }}
+                                    >
+                                        <Typography style={{ color: bgColor, fontWeight: '600' }}>Clear Filters</Typography>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        }
+                        renderItem={({ item }) => (
+                            <TouchableOpacity style={styles.gridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
+                                <View style={[styles.imgWrapper, { backgroundColor: cardBgColor }]}>
+                                    <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.img} resizeMode="cover" />
+                                    <TouchableOpacity
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            toggle({
+                                                id: item.id,
+                                                title: item.title,
+                                                brand: item.brand || 'HYPEKART',
+                                                price: item.base_price,
+                                                image: getPrimaryImage(item.images),
+                                                images: item.images,
+                                            });
+                                        }}
+                                        style={styles.heartBtn}
+                                    >
+                                        <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+                                        <Ionicons
+                                            name={isWishlisted(item.id) ? 'heart' : 'heart-outline'}
+                                            size={18}
+                                            color={isWishlisted(item.id) ? '#ff4b4b' : '#fff'}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={styles.info}>
+                                    <Typography style={[styles.brand, { color: subtextColor }]}>{item.brand || 'HYPEKART'}</Typography>
+                                    <Typography style={[styles.itemTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                    <Typography style={[styles.price, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                    />
                 )}
             </SafeAreaView>
         </View>

@@ -14,10 +14,11 @@ import { useUser } from '@clerk/clerk-expo';
 
 import { useAddressStore } from '../../store/addressStore';
 import { useThemeStore } from '../../store/themeStore';
+import { usePaymentStore, PAYMENT_OPTIONS, PaymentMethodType } from '../../store/paymentStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-const RAZORPAY_CHECKOUT_HTML = (keyId: string, orderId: string, amount: number, name: string, email: string, phone: string) => `
+const RAZORPAY_CHECKOUT_HTML = (keyId: string, orderId: string, amount: number, name: string, email: string, phone: string, method: string) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -33,7 +34,7 @@ const RAZORPAY_CHECKOUT_HTML = (keyId: string, orderId: string, amount: number, 
       name: "HypeKart",
       description: "Order Payment",
       order_id: "${orderId}",
-      prefill: { name: "${name}", email: "${email}", contact: "${phone}" },
+      prefill: { name: "${name}", email: "${email}", contact: "${phone}"${method !== 'all' ? `, method: "${method}"` : ''} },
       theme: { color: "#000000" },
       handler: function(response) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -77,6 +78,9 @@ export default function CheckoutScreen() {
     const { addresses, selectedAddressId } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
 
+    const { preferredMethodId } = usePaymentStore();
+    const [selectedMethodId, setSelectedMethodId] = useState<PaymentMethodType>(preferredMethodId);
+
     const isDarkMode = useThemeStore(s => s.isDarkMode);
     const bgColor = isDarkMode ? '#121212' : '#fafafa';
     const textColor = isDarkMode ? '#fff' : '#000';
@@ -118,6 +122,7 @@ export default function CheckoutScreen() {
                 selectedAddress.full_name,
                 (user?.unsafeMetadata?.contact_email as string) || user?.primaryEmailAddress?.emailAddress || '',
                 selectedAddress.phone,
+                selectedMethodId,
             ));
             setStep('payment');
         } catch (e: any) {
@@ -241,6 +246,39 @@ export default function CheckoutScreen() {
                         )}
                     </View>
 
+                    {/* Payment Method */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography style={styles.sectionTitle}>Payment Method</Typography>
+                        <TouchableOpacity onPress={() => navigation.navigate('PaymentMethods')}>
+                            <Typography style={{ fontSize: 13, color: textColor, fontWeight: '600' }}>Change Default</Typography>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={[styles.card, { backgroundColor: cardBgColor }]}>
+                        {PAYMENT_OPTIONS.map((option, index) => {
+                            const isSelected = selectedMethodId === option.id;
+                            return (
+                                <TouchableOpacity
+                                    key={option.id}
+                                    style={[
+                                        styles.optionRow,
+                                        index < PAYMENT_OPTIONS.length - 1 && [styles.summaryRowBorder, { borderBottomColor: borderColor }]
+                                    ]}
+                                    onPress={() => setSelectedMethodId(option.id)}
+                                >
+                                    <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#333' : '#f5f5f5' }]}>
+                                        <Ionicons name={option.icon as any} size={20} color={textColor} />
+                                    </View>
+                                    <View style={styles.optionContent}>
+                                        <Typography style={[styles.optionLabel, { color: textColor }]}>{option.label}</Typography>
+                                    </View>
+                                    <View style={[styles.radioOuter, { borderColor: isSelected ? textColor : subtextColor }]}>
+                                        {isSelected && <View style={[styles.radioInner, { backgroundColor: textColor }]} />}
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
                     {/* Order Summary */}
                     <Typography style={styles.sectionTitle}>Order Summary</Typography>
                     <View style={[styles.card, { backgroundColor: cardBgColor }]}>
@@ -338,4 +376,10 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)',
         alignItems: 'center', justifyContent: 'center', zIndex: 10,
     },
+    optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20 },
+    iconBox: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    optionContent: { flex: 1 },
+    optionLabel: { fontSize: 14, fontWeight: '500' },
+    radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+    radioInner: { width: 10, height: 10, borderRadius: 5 },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { CartScreenSkeleton } from '../../components/ui/SkeletonLoader';
 
 const FREE_SHIPPING_THRESHOLD = 1500;
 
@@ -15,6 +16,12 @@ export default function CartScreen() {
     const { items, removeItem, updateQuantity, getCartTotal, getCartCount } = useCartStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
     const navigation = useNavigation<any>();
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    useEffect(() => {
+        const t = setTimeout(() => setIsInitialLoading(false), 700);
+        return () => clearTimeout(t);
+    }, []);
 
     const total = getCartTotal();
     const itemCount = getCartCount();
@@ -29,6 +36,14 @@ export default function CartScreen() {
     const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
     const borderColor = isDarkMode ? '#333' : '#f0f0f0';
     const imgBgColor = isDarkMode ? '#333' : '#f5f5f5';
+
+    if (isInitialLoading) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+                <CartScreenSkeleton />
+            </SafeAreaView>
+        );
+    }
 
     if (items.length === 0) {
         return (
@@ -62,11 +77,19 @@ export default function CartScreen() {
         <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: bgColor }]}>
-                <Typography style={[styles.headerTitle, { color: textColor }]}>Shopping Bag</Typography>
-                <Typography style={[styles.headerSubtitle, { color: subtextColor }]}>{itemCount} items</Typography>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.headerBtn}>
+                    <Ionicons name="arrow-back" size={22} color={textColor} />
+                </TouchableOpacity>
+                <View style={{ alignItems: 'center' }}>
+                    <Typography style={[styles.headerTitle, { color: textColor }]}>Shopping Bag</Typography>
+                    <Typography style={[styles.headerSubtitle, { color: subtextColor }]}>{itemCount} items</Typography>
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate('Favorites')} style={styles.headerBtn}>
+                    <Ionicons name="heart-outline" size={22} color={textColor} />
+                </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 160 }}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
 
                 {/* Free shipping banner */}
                 <View style={styles.shippingBanner}>
@@ -166,9 +189,8 @@ export default function CartScreen() {
                 </View>
             </ScrollView>
 
-            {/* Checkout Button (Fixed Bottom) */}
-            <View style={[styles.checkoutFooter, { backgroundColor: isDarkMode ? 'rgba(18,18,18,0.8)' : 'rgba(250,250,250,0.8)', borderTopColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
-                <BlurView intensity={80} tint={isDarkMode ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+            {/* Checkout Button (Footer) */}
+            <View style={styles.checkoutFooter}>
                 <TouchableOpacity
                     onPress={() => navigation.navigate('Checkout')}
                     style={styles.checkoutButton}
@@ -249,23 +271,29 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     header: {
-        paddingHorizontal: 24,
-        paddingVertical: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 12,
         backgroundColor: '#fafafa',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'baseline'
+        alignItems: 'center',
+    },
+    headerBtn: {
+        width: 48,
+        height: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 24,
     },
     headerTitle: {
-        fontSize: 32,
-        fontWeight: '300',
-        color: '#000',
-        letterSpacing: -1
+        fontSize: 20,
+        fontWeight: '600',
+        letterSpacing: -0.5,
     },
     headerSubtitle: {
-        fontSize: 14,
-        color: '#666',
-        fontWeight: '500'
+        fontSize: 12,
+        fontWeight: '500',
+        marginTop: 1,
     },
     shippingBanner: {
         marginHorizontal: 24,
@@ -418,16 +446,12 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5
     },
     checkoutFooter: {
-        position: 'absolute',
-        bottom: Platform.OS === 'ios' ? 104 : 94, // 64 (tab height) + 24/34 (tab bottom) + margin
-        left: 0,
-        right: 0,
         paddingHorizontal: 24,
         paddingTop: 16,
-        paddingBottom: 16,
+        paddingBottom: 24,
         borderTopWidth: 1,
         borderTopColor: 'rgba(0,0,0,0.05)',
-        backgroundColor: 'rgba(250,250,250,0.8)'
+        overflow: 'hidden',
     },
     checkoutButton: {
         width: '100%',

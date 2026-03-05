@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
@@ -7,11 +7,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useThemeStore } from '../../store/themeStore';
+import { WishlistScreenSkeleton } from '../../components/ui/SkeletonLoader';
+import { useCartStore } from '../../store/cartStore';
 
 export default function WishlistScreen() {
     const navigation = useNavigation<any>();
     const { items, removeItem } = useWishlistStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
+    const addToCart = useCartStore(s => s.addItem);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    useEffect(() => {
+        const t = setTimeout(() => setIsInitialLoading(false), 700);
+        return () => clearTimeout(t);
+    }, []);
 
     const bgColor = isDarkMode ? '#121212' : '#fafafa';
     const textColor = isDarkMode ? '#fff' : '#000';
@@ -19,6 +28,14 @@ export default function WishlistScreen() {
     const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
     const imgBgColor = isDarkMode ? '#333' : '#f5f5f5';
     const removeBg = isDarkMode ? '#3a1a1a' : '#fff5f5';
+
+    if (isInitialLoading) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+                <WishlistScreenSkeleton />
+            </SafeAreaView>
+        );
+    }
 
     if (items.length === 0) {
         return (
@@ -99,6 +116,28 @@ export default function WishlistScreen() {
                                     <Ionicons name="heart" size={20} color="#ff4b4b" />
                                 </TouchableOpacity>
                             </View>
+
+                            {/* Add to Cart */}
+                            <TouchableOpacity
+                                onPress={(e) => {
+                                    e.stopPropagation();
+                                    addToCart({
+                                        productId: item.id,
+                                        name: item.title,
+                                        price: item.price,
+                                        image: item.image,
+                                        size: item.sizes?.[0] || 'One Size',
+                                        color: item.colors?.[0] || 'Default',
+                                        quantity: 1,
+                                    });
+                                    navigation.navigate('Cart');
+                                }}
+                                style={[styles.addToCartBtn, { backgroundColor: textColor }]}
+                                activeOpacity={0.85}
+                            >
+                                <Ionicons name="bag-handle-outline" size={14} color={bgColor} />
+                                <Typography style={{ color: bgColor, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>Add to Cart</Typography>
+                            </TouchableOpacity>
                         </View>
                     </TouchableOpacity>
                 ))}
@@ -247,5 +286,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff5f5',
         alignItems: 'center',
         justifyContent: 'center',
-    }
+    },
+    addToCartBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 9,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        marginTop: 10,
+    },
 });

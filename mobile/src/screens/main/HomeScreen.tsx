@@ -126,6 +126,10 @@ export default function HomeScreen() {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearchLoading, setIsSearchLoading] = useState(false);
     const searchInputRef = useRef<TextInput>(null);
+    const [searchPage, setSearchPage] = useState(0);
+    const [hasMoreSearch, setHasMoreSearch] = useState(true);
+    const [isSearchLoadingMore, setIsSearchLoadingMore] = useState(false);
+    const SEARCH_PAGE_SIZE = 20;
 
     const { addresses, selectedAddressId, addAddress } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
@@ -157,23 +161,50 @@ export default function HomeScreen() {
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
-    const fetchSearchResults = async (query: string) => {
-        setIsSearchLoading(true);
+    const fetchSearchResults = async (query: string, isLoadMore = false) => {
+        if (isLoadMore) {
+            if (!hasMoreSearch || isSearchLoadingMore) return;
+            setIsSearchLoadingMore(true);
+        } else {
+            setIsSearchLoading(true);
+            setSearchPage(0);
+            setHasMoreSearch(true);
+        }
+
         try {
+            const currentPage = isLoadMore ? searchPage + 1 : 0;
+            const from = currentPage * SEARCH_PAGE_SIZE;
+            const to = from + SEARCH_PAGE_SIZE - 1;
+
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
                 .ilike('title', `%${query}%`)
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .range(from, to);
 
             if (!error && data) {
-                setSearchResults(data);
+                if (isLoadMore) {
+                    setSearchResults(prev => [...prev, ...data]);
+                } else {
+                    setSearchResults(data);
+                }
+
+                if (data.length < SEARCH_PAGE_SIZE) {
+                    setHasMoreSearch(false);
+                }
+                if (isLoadMore && data.length > 0) {
+                    setSearchPage(currentPage);
+                }
             }
         } catch (error) {
             console.error("Error searching products:", error);
         } finally {
-            setIsSearchLoading(false);
+            if (isLoadMore) {
+                setIsSearchLoadingMore(false);
+            } else {
+                setIsSearchLoading(false);
+            }
         }
     };
 
@@ -419,51 +450,70 @@ export default function HomeScreen() {
                     )}
                 </View>
 
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={() => fetchProducts(true)}
-                            tintColor="#000"
-                            colors={['#000']}
-                        />
-                    }
-                    keyboardShouldPersistTaps="handled"
-                >
-
-                    {isSearching ? (
-                        <View style={{ flex: 1, minHeight: 400 }}>
-                            {searchQuery.trim() === '' ? (
-                                <View style={{ padding: 40, alignItems: 'center' }}>
-                                    <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
-                                    <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, streetwear...</Typography>
-                                </View>
-                            ) : isSearchLoading ? (
-                                <ActivityIndicator color={textColor} style={{ marginTop: 40 }} />
-                            ) : searchResults.length === 0 ? (
-                                <View style={{ padding: 40, alignItems: 'center' }}>
-                                    <Typography style={{ color: textColor, fontSize: 18, fontWeight: '600' }}>No results found</Typography>
-                                    <Typography style={{ color: placeholderColor, marginTop: 8, textAlign: 'center' }}>We couldn't find anything matching "{searchQuery}"</Typography>
-                                </View>
-                            ) : (
-                                <View style={[styles.newGrid, { paddingTop: 16 }]}>
-                                    {searchResults.map((item) => (
-                                        <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
-                                            <View style={[styles.newGridImgWrapper, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
-                                                <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
-                                            </View>
-                                            <View style={styles.newGridInfo}>
-                                                <Typography style={[styles.newGridTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
-                                                <Typography style={[styles.productPrice, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
-                                            </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    ) : (
+                {isSearching ? (
+                    <View style={{ flex: 1 }}>
+                        {searchQuery.trim() === '' ? (
+                            <View style={{ padding: 40, alignItems: 'center', paddingTop: 100 }}>
+                                <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
+                                <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, streetwear...</Typography>
+                            </View>
+                        ) : isSearchLoading && searchResults.length === 0 ? (
+                            <ActivityIndicator color={textColor} style={{ marginTop: 100 }} />
+                        ) : searchResults.length === 0 ? (
+                            <View style={{ padding: 40, alignItems: 'center', paddingTop: 100 }}>
+                                <Typography style={{ color: textColor, fontSize: 18, fontWeight: '600' }}>No results found</Typography>
+                                <Typography style={{ color: placeholderColor, marginTop: 8, textAlign: 'center' }}>We couldn't find anything matching "{searchQuery}"</Typography>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={searchResults}
+                                keyExtractor={(item, index) => `${item.id}-${index}`}
+                                numColumns={2}
+                                contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 100 }}
+                                columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 24 }}
+                                keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator={false}
+                                onEndReached={() => {
+                                    if (hasMoreSearch && !isSearchLoading && !isSearchLoadingMore) {
+                                        fetchSearchResults(searchQuery, true);
+                                    }
+                                }}
+                                onEndReachedThreshold={0.5}
+                                ListFooterComponent={
+                                    isSearchLoadingMore ? (
+                                        <View style={{ paddingVertical: 20 }}>
+                                            <ActivityIndicator color={textColor} />
+                                        </View>
+                                    ) : null
+                                }
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
+                                        <View style={[styles.newGridImgWrapper, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
+                                            <Image source={{ uri: getPrimaryImage(item.images) }} style={styles.productImg} resizeMode="cover" />
+                                        </View>
+                                        <View style={styles.newGridInfo}>
+                                            <Typography style={[styles.newGridTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                            <Typography style={[styles.productPrice, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        )}
+                    </View>
+                ) : (
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={() => fetchProducts(true)}
+                                tintColor="#000"
+                                colors={['#000']}
+                            />
+                        }
+                        keyboardShouldPersistTaps="handled"
+                    >
                         <>
                             {/* Hero Banner Carousel */}
                             <View style={styles.heroContainer}>
@@ -642,65 +692,16 @@ export default function HomeScreen() {
 
 
 
-                            {/* Trending Now */}
-                            <View style={styles.sectionHeader}>
-                                <Typography style={[styles.sectionTitle, { color: textColor }]}>Trending</Typography>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                                    {activeCategory !== '1' && (
-                                        <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <Ionicons name="options-outline" size={20} color={textColor} />
-                                            {(activeSubCategory !== 'All' || activeItemType !== 'All') && (
-                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: textColor, marginLeft: 2, marginTop: -8 }} />
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'Trending', action: 'trending' })}>
-                                        <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
 
-                            {isLoading ? (
-                                <ActivityIndicator color={textColor} style={{ marginTop: 40, marginLeft: width / 2 - 40 }} />
-                            ) : (
-                                <FlatList
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    style={styles.horizontalScroll}
-                                    data={trendingProducts}
-                                    keyExtractor={item => item.id}
-                                    contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 40, gap: 16 }}
-                                    snapToInterval={216}
-                                    decelerationRate="fast"
-                                    initialNumToRender={3}
-                                    maxToRenderPerBatch={3}
-                                    windowSize={5}
-                                    removeClippedSubviews={true}
-                                    renderItem={({ item: prod }) => (
-                                        <ProductCard
-                                            prod={prod}
-                                            onPress={() => navigation.navigate('ProductDetails', { product: prod })}
-                                            onToggleWishlist={handleToggleWishlist}
-                                            isWishlisted={isWishlisted(prod.id)}
-                                            isDarkMode={isDarkMode}
-                                        />
-                                    )}
-                                />
-                            )}
 
                             {/* New Arrivals Grid */}
                             <View style={styles.sectionHeader}>
                                 <Typography style={[styles.sectionTitle, { color: textColor }]}>New Arrivals</Typography>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                                    {activeCategory !== '1' && (
-                                        <TouchableOpacity onPress={() => setIsFilterModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <Ionicons name="options-outline" size={20} color={textColor} />
-                                            {(activeSubCategory !== 'All' || activeItemType !== 'All') && (
-                                                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: textColor, marginLeft: 2, marginTop: -8 }} />
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity onPress={() => navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals' })}>
+                                    <TouchableOpacity onPress={() => {
+                                        const cat = CATEGORIES.find(c => c.id === activeCategory);
+                                        navigation.navigate('Catalog', { title: 'New Arrivals', action: 'new_arrivals', categoryName: cat?.name });
+                                    }}>
                                         <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
                                     </TouchableOpacity>
                                 </View>
@@ -709,6 +710,12 @@ export default function HomeScreen() {
                             <View style={styles.newGrid}>
                                 {isLoading ? (
                                     <ActivityIndicator color={textColor} style={{ marginTop: 20, alignSelf: 'center', flex: 1 }} />
+                                ) : newArrivals.length === 0 ? (
+                                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+                                        <Ionicons name="cube-outline" size={48} color={subtextColor} style={{ marginBottom: 16 }} />
+                                        <Typography style={{ fontSize: 16, color: textColor, fontWeight: '600' }}>No new arrivals yet</Typography>
+                                        <Typography style={{ fontSize: 13, color: subtextColor, marginTop: 8, textAlign: 'center' }}>Check back later for fresh drops.</Typography>
+                                    </View>
                                 ) : newArrivals.map((item) => (
                                     <TouchableOpacity key={item.id} style={styles.newGridCard} onPress={() => navigation.navigate('ProductDetails', { product: item })}>
                                         <View style={[styles.newGridImgWrapper, { backgroundColor: isDarkMode ? '#1e1e1e' : '#f5f5f5' }]}>
@@ -751,9 +758,8 @@ export default function HomeScreen() {
                                 ))}
                             </View>
                         </>
-                    )}
-
-                </ScrollView>
+                    </ScrollView>
+                )}
             </SafeAreaView>
         </View>
     );

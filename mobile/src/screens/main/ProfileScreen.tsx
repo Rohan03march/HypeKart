@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { getUserOrders } from '../../lib/getUserOrders';
 import { useThemeStore } from '../../store/themeStore';
+import { ProfileScreenSkeleton } from '../../components/ui/SkeletonLoader';
+import { usePaymentStore, PAYMENT_OPTIONS } from '../../store/paymentStore';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -62,6 +64,15 @@ export default function ProfileScreen() {
     const wishlistItems = useWishlistStore(s => s.items);
     const [orderCount, setOrderCount] = useState<number | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    const preferredMethodId = usePaymentStore(s => s.preferredMethodId);
+    const selectedPaymentLabel = PAYMENT_OPTIONS.find(o => o.id === preferredMethodId)?.label || 'Ask Every Time';
+
+    useEffect(() => {
+        const t = setTimeout(() => setIsInitialLoading(false), 700);
+        return () => clearTimeout(t);
+    }, []);
 
     const { isDarkMode, toggleTheme } = useThemeStore();
 
@@ -103,6 +114,14 @@ export default function ProfileScreen() {
     const faintBorder = isDarkMode ? '#333' : '#f0f0f0';
     const shadowOpacity = isDarkMode ? 0.3 : 0.03;
     const placeholderBg = isDarkMode ? '#333' : '#f5f5f5';
+
+    if (isInitialLoading) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+                <ProfileScreenSkeleton />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
@@ -193,8 +212,8 @@ export default function ProfileScreen() {
                             isDarkMode={isDarkMode}
                             icon="card-outline"
                             label="Payment Methods"
-                            sublabel="Secured by 256-bit Encryption"
-                            onPress={() => Alert.alert('Payment Methods', 'Your payments are processed through encrypted banking networks. Card details are never stored on our servers.')}
+                            sublabel={selectedPaymentLabel}
+                            onPress={() => navigation.navigate('PaymentMethods')}
                         />
                     </View>
                 </View>

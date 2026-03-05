@@ -29,6 +29,7 @@ import OrderHistoryScreen from '../screens/main/OrderHistoryScreen';
 import ShippingAddressScreen from '../screens/main/ShippingAddressScreen';
 import PersonalDetailsScreen from '../screens/main/PersonalDetailsScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
+import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -44,16 +45,14 @@ const TAB_ICONS: Record<TabName, { active: React.ComponentProps<typeof Ionicons>
 
 import { useThemeStore } from '../store/themeStore';
 
-function CustomTabBar({ state, navigation }: any) {
-    const getCartCount = useCartStore(s => s.getCartCount);
-    const cartCount = getCartCount();
+function CustomTabBar({ state, navigation, descriptors }: any) {
+    const cartCount = useCartStore(s => s.items.reduce((total, item) => total + item.quantity, 0));
     const isDarkMode = useThemeStore(s => s.isDarkMode);
 
-    // Dynamic width calculation for the sliding indicator
-    const tabWidth = (width - 48 - 16) / state.routes.length; // 48 is container padding, 16 is inner padding
+    // All hooks must be called before any early return (Rules of Hooks)
+    const tabWidth = (width - 48 - 16) / state.routes.length;
     const translateX = useSharedValue(0);
 
-    // Animate the active pill background
     React.useEffect(() => {
         translateX.value = withSpring(state.index * tabWidth, {
             damping: 18,
@@ -67,6 +66,12 @@ function CustomTabBar({ state, navigation }: any) {
             transform: [{ translateX: translateX.value }],
         };
     });
+
+    // Hide tab bar for screens that opt out (e.g. Cart) — AFTER all hooks
+    const activeRoute = state.routes[state.index];
+    const activeDescriptor = descriptors[activeRoute.key];
+    const tabBarStyle = activeDescriptor?.options?.tabBarStyle;
+    if (tabBarStyle && (tabBarStyle as any).display === 'none') return null;
 
     // Theme Colors
     const blurTint = isDarkMode ? "dark" : "light";
@@ -136,7 +141,7 @@ function MainTabNavigator() {
             screenOptions={{ headerShown: false }}
         >
             <Tab.Screen name="Home" component={HomeScreen} />
-            <Tab.Screen name="Cart" component={CartScreen} />
+            <Tab.Screen name="Cart" component={CartScreen} options={{ tabBarStyle: { display: 'none' } }} />
             <Tab.Screen name="Favorites" component={WishlistScreen} />
             <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
@@ -179,6 +184,7 @@ export default function RootNavigator() {
                     <Stack.Screen name="ShippingAddress" component={ShippingAddressScreen} />
                     <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
                     <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+                    <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                 </Stack.Group>
             ) : (
                 <Stack.Group>
