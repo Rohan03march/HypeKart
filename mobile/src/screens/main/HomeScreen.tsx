@@ -15,6 +15,7 @@ import * as Location from 'expo-location';
 import { useAddressStore } from '../../store/addressStore';
 import { useCacheStore } from '../../store/cacheStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useRecentSearchStore } from '../../store/recentSearchStore';
 
 const getPrimaryImage = (images: string[]) => {
     if (images && images.length > 0) return images[0];
@@ -131,6 +132,8 @@ export default function HomeScreen() {
     const [isSearchLoadingMore, setIsSearchLoadingMore] = useState(false);
     const SEARCH_PAGE_SIZE = 20;
 
+    const { searches: recentSearches, addSearch, clearSearches, removeSearch } = useRecentSearchStore();
+
     const { addresses, selectedAddressId, addAddress } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
     const { getProducts, setProducts } = useCacheStore();
@@ -162,6 +165,10 @@ export default function HomeScreen() {
     }, [searchQuery]);
 
     const fetchSearchResults = async (query: string, isLoadMore = false) => {
+        if (!isLoadMore && query.trim().length > 0) {
+            addSearch(query);
+        }
+
         if (isLoadMore) {
             if (!hasMoreSearch || isSearchLoadingMore) return;
             setIsSearchLoadingMore(true);
@@ -453,10 +460,35 @@ export default function HomeScreen() {
                 {isSearching ? (
                     <View style={{ flex: 1 }}>
                         {searchQuery.trim() === '' ? (
-                            <View style={{ padding: 40, alignItems: 'center', paddingTop: 100 }}>
-                                <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
-                                <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, streetwear...</Typography>
-                            </View>
+                            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                                {recentSearches.length > 0 ? (
+                                    <View style={{ padding: 24 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                            <Typography style={{ fontSize: 16, fontWeight: '600', color: textColor }}>Recent Searches</Typography>
+                                            <TouchableOpacity onPress={clearSearches}>
+                                                <Typography style={{ fontSize: 13, color: '#ef4444', fontWeight: '500' }}>Clear All</Typography>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                            {recentSearches.map((term: string, i: number) => (
+                                                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? '#1e1e1e' : '#fff', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: isDarkMode ? '#333' : '#eee' }}>
+                                                    <TouchableOpacity onPress={() => setSearchQuery(term)} style={{ marginRight: 8 }}>
+                                                        <Typography style={{ color: textColor, fontSize: 14 }}>{term}</Typography>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity onPress={() => removeSearch(term)} style={{ padding: 2, paddingRight: 0 }}>
+                                                        <Ionicons name="close" size={14} color={subtextColor} />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <View style={{ padding: 40, alignItems: 'center', paddingTop: 100 }}>
+                                        <Ionicons name="search" size={48} color={isDarkMode ? '#333' : '#ddd'} />
+                                        <Typography style={{ color: placeholderColor, marginTop: 16, fontSize: 16 }}>Search for sneakers, streetwear...</Typography>
+                                    </View>
+                                )}
+                            </ScrollView>
                         ) : isSearchLoading && searchResults.length === 0 ? (
                             <ActivityIndicator color={textColor} style={{ marginTop: 100 }} />
                         ) : searchResults.length === 0 ? (

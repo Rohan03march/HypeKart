@@ -4,11 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { MoreHorizontal, Trash2, PenSquare } from "lucide-react";
 import { deleteProductAction } from "@/app/admin/products/actions";
 import { useRouter } from "next/navigation";
-import EditProductModal from "./EditProductModal";
 
 export default function ProductRowActions({ product }: { product: any }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -54,7 +52,7 @@ export default function ProductRowActions({ product }: { product: any }) {
 
     const handleEdit = () => {
         setIsOpen(false);
-        setIsEditModalOpen(true);
+        router.push(`/admin/products/${product.id}`);
     };
 
     return (
@@ -90,12 +88,6 @@ export default function ProductRowActions({ product }: { product: any }) {
                     </div>
                 </div>
             )}
-
-            <EditProductModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                product={product}
-            />
         </div>
     );
 }
