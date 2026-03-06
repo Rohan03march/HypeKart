@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, ScrollView, TouchableOpacity, Image,
     Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback
@@ -14,6 +14,8 @@ import { BlurView } from 'expo-blur';
 import { useWishlistStore } from '../../store/wishlistStore';
 import Carousel from 'react-native-reanimated-carousel';
 import { useThemeStore } from '../../store/themeStore';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '@clerk/clerk-expo';
 
 const { width } = Dimensions.get('window');
 
@@ -51,6 +53,7 @@ export default function ProductDetailsScreen() {
     const productName: string = product?.title ?? product?.name ?? 'Product';
     const productBrand: string = product?.brand ?? 'HYPEKART';
     const productPrice: number = product?.base_price ?? product?.price ?? 0;
+    const productStock: number = typeof product?.stock === 'number' ? product.stock : 99; // Default high if undocumented
     const productDescription: string = product?.description ?? 'No description available.';
     const productImages: string[] = (product?.images && product.images.length > 0)
         ? product.images
@@ -70,6 +73,39 @@ export default function ProductDetailsScreen() {
     const insets = useSafeAreaInsets();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
 
+    const [liveStock, setLiveStock] = useState<number>(productStock);
+
+    // Real-time Supabase subscription for stock updates
+    useEffect(() => {
+        if (!productId) return;
+
+        // Initialize with default from params
+        setLiveStock(productStock);
+
+        const channel = supabase
+            .channel(`public:products:id=${productId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'products',
+                    filter: `id=eq.${productId}`
+                },
+                (payload) => {
+                    const newRecord = payload.new as any;
+                    if (newRecord && typeof newRecord.stock === 'number') {
+                        setLiveStock(newRecord.stock);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [productId, productStock]);
+
     const bgColor = isDarkMode ? '#121212' : '#fff';
     const textColor = isDarkMode ? '#fff' : '#000';
     const subtextColor = isDarkMode ? '#aaa' : '#666';
@@ -79,19 +115,54 @@ export default function ProductDetailsScreen() {
     const chipBorder = isDarkMode ? '#444' : '#f5f5f5';
     const imageBg = isDarkMode ? '#1e1e1e' : '#f3f3f3';
 
-    const handleAddToCart = () => {
-        addItem({
-            productId,
-            name: productName,
-            price: productPrice,
-            image: productImages[0],
-            size: selectedSize,
-            color: selectedColor,
-            quantity: 1,
-        });
-        setAdded(true);
-        setTimeout(() => setAdded(false), 2000);
-        navigation.navigate('MainTabs' as never, { screen: 'Cart' } as never);
+    const { userId } = useAuth();
+
+    // ... we need more imports, I will do this in the next replacement
+    const handleAddToCart = async () => {
+        if (!userId) {
+            alert('Please log in to add items to your bag.');
+            return;
+        }
+
+        try {
+            // 1. Call the backend to secure a 10-minute reservation lock
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+            const response = await fetch(`${API_URL}/cart/reserve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: 1, // Currently fixed to 1 from product details
+                    user_clerk_id: userId
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || 'Failed to reserve item.');
+                return;
+            }
+
+            // 2. Reservation successful! Add to local Zustand cart
+            addItem({
+                productId,
+                name: productName,
+                price: productPrice,
+                image: productImages[0],
+                size: selectedSize,
+                color: selectedColor,
+                quantity: 1,
+            });
+
+            setAdded(true);
+            setTimeout(() => setAdded(false), 2000);
+            navigation.navigate('MainTabs' as never, { screen: 'Cart' } as never);
+
+        } catch (error) {
+            console.error('Reservation Error:', error);
+            alert('A network error occurred while reserving the item.');
+        }
     };
 
     return (
@@ -170,6 +241,20 @@ export default function ProductDetailsScreen() {
                     {/* Price below name */}
                     <View style={styles.priceRow}>
                         <Typography style={[styles.priceText, { color: textColor }]}>₹{productPrice.toLocaleString('en-IN')}</Typography>
+
+                        {liveStock === 0 && (
+                            <View style={styles.stockBadgeOut}>
+                                <Typography style={styles.stockBadgeTextOut}>Sold Out</Typography>
+                            </View>
+                        )}
+                        {liveStock > 0 && liveStock <= 5 && (
+                            <View style={styles.stockBadgeLow}>
+                                <View style={styles.stockIconContainer}>
+                                    <Ionicons name="flash" size={12} color="#fff" />
+                                </View>
+                                <Typography style={styles.stockBadgeTextLow}>Only {liveStock} left</Typography>
+                            </View>
+                        )}
                     </View>
 
                     <View style={[styles.divider, { backgroundColor: borderColor }]} />
@@ -246,10 +331,10 @@ export default function ProductDetailsScreen() {
                     onPress={handleAddToCart}
                     style={styles.ctaButton}
                     activeOpacity={0.9}
-                    disabled={added}
+                    disabled={added || liveStock === 0}
                 >
                     <LinearGradient
-                        colors={added ? ['#16a34a', '#15803d'] : ['#000', '#1a1a1a']}
+                        colors={liveStock === 0 ? ['#9ca3af', '#6b7280'] : added ? ['#16a34a', '#15803d'] : ['#000', '#1a1a1a']}
                         style={styles.ctaGradient}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -260,7 +345,9 @@ export default function ProductDetailsScreen() {
                                 <Typography style={styles.ctaText}>Added to Bag</Typography>
                             </View>
                         ) : (
-                            <Typography style={styles.ctaText}>Add to Bag  ·  ₹{productPrice.toLocaleString('en-IN')}</Typography>
+                            <Typography style={styles.ctaText}>
+                                {liveStock === 0 ? "Sold Out" : `Add to Bag  ·  ₹${productPrice.toLocaleString('en-IN')}`}
+                            </Typography>
                         )}
                     </LinearGradient>
                 </TouchableOpacity>
@@ -445,18 +532,68 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     priceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 20,
     },
     priceText: {
-        fontSize: 22,
-        fontWeight: '700',
+        fontSize: 24,
+        fontWeight: '800',
         color: '#000',
-        letterSpacing: -0.3,
+        letterSpacing: -0.5,
     },
     divider: {
         height: 1,
         backgroundColor: '#f0f0f0',
         marginBottom: 24,
+    },
+    stockBadgeLow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginLeft: 14,
+        borderWidth: 1,
+        borderColor: '#fee2e2',
+        shadowColor: '#ef4444',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    stockIconContainer: {
+        backgroundColor: '#ef4444',
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 6,
+    },
+    stockBadgeTextLow: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#ef4444',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+    },
+    stockBadgeOut: {
+        backgroundColor: '#f3f4f6',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        marginLeft: 14,
+    },
+    stockBadgeTextOut: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#9ca3af',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
     },
 
     // Sections

@@ -35,24 +35,31 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Deduct inventory stock sequentially
+        // Deduct inventory stock atomically using our PostgreSQL RPC
         if (items && Array.isArray(items)) {
-            for (const item of items) {
-                if (item.product_id && typeof item.quantity === 'number') {
-                    const { data: product } = await supabaseAdmin
-                        .from('products')
-                        .select('stock')
-                        .eq('id', item.product_id)
-                        .single();
+            // We pass the items array directly to our custom stored procedure
+            const { error: rpcError } = await supabaseAdmin.rpc('process_order_inventory', {
+                order_items: items
+            });
 
-                    if (product && typeof product.stock === 'number') {
-                        const newStock = Math.max(0, product.stock - item.quantity);
-                        await supabaseAdmin
-                            .from('products')
-                            .update({ stock: newStock })
-                            .eq('id', item.product_id);
-                    }
-                }
+            if (rpcError) {
+                console.error('[save-order] Inventory reduction failed:', rpcError);
+                await supabaseAdmin
+                    .from('orders')
+                    .update({ status: 'Inventory Failed - Review Required' })
+                    .eq('id', data.id);
+
+                return NextResponse.json({ error: 'Out of stock: ' + rpcError.message }, { status: 409 });
+            }
+
+            // Since checkout succeeded, mark their temporary cart reservations as COMPLETED
+            for (const item of items) {
+                await supabaseAdmin
+                    .from('reserved_stock')
+                    .update({ status: 'COMPLETED' })
+                    .eq('user_clerk_id', user_clerk_id)
+                    .eq('product_id', item.product_id)
+                    .eq('status', 'ACTIVE');
             }
         }
 

@@ -3,6 +3,7 @@ import {
     View, KeyboardAvoidingView, Platform, TouchableOpacity,
     ScrollView, ActivityIndicator, StyleSheet, TextInput, Modal, Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignIn, useOAuth } from '@clerk/clerk-expo';
 import { Typography } from '../../components/ui/Typography';
@@ -33,6 +34,44 @@ export default function LoginScreen() {
     const [otpCode, setOtpCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
+
+    React.useEffect(() => {
+        const checkPendingReset = async () => {
+            try {
+                const pendingEmail = await AsyncStorage.getItem('pendingPasswordReset');
+                if (pendingEmail) {
+                    await AsyncStorage.removeItem('pendingPasswordReset');
+                    setForgotEmail(pendingEmail);
+                    setForgotStep('otp'); // Skip email input step
+                    setIsForgotModalVisible(true);
+
+                    // We don't trigger signIn.create here automatically to avoid silent errors.
+                    // Instead, ChangePasswordScreen already triggered the email.
+                    // Wait, ChangePasswordScreen couldn't trigger the email because of the session error!
+                    // Ah! We must trigger it here.
+
+                    setIsResetting(true);
+                    try {
+                        await signIn?.create({
+                            strategy: 'reset_password_email_code',
+                            identifier: pendingEmail,
+                        });
+                    } catch (err: any) {
+                        Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to initiate password reset automatically. Please request a new OTP.');
+                        setForgotStep('email'); // Fallback to asking them to retry
+                    } finally {
+                        setIsResetting(false);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking pending reset:', error);
+            }
+        };
+
+        if (isLoaded) {
+            checkPendingReset();
+        }
+    }, [isLoaded, signIn]);
 
     const onSignIn = async () => {
         if (!isLoaded) return;

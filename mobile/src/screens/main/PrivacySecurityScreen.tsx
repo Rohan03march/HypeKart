@@ -81,7 +81,7 @@ export default function PrivacySecurityScreen() {
                             icon="key-outline"
                             title="Change Password"
                             subtitle="Update your account password"
-                            onPress={() => Alert.alert('Change Password', 'An email has been sent to your registered address with instructions to change your password.')}
+                            onPress={() => navigation.navigate('ChangePassword')}
                             isDarkMode={isDarkMode}
                         />
                         <View style={[styles.divider, { backgroundColor: borderColor }]} />

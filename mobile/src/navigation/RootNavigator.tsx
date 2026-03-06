@@ -29,6 +29,7 @@ import OrderHistoryScreen from '../screens/main/OrderHistoryScreen';
 import ShippingAddressScreen from '../screens/main/ShippingAddressScreen';
 import PersonalDetailsScreen from '../screens/main/PersonalDetailsScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
+import ChangePasswordScreen from '../screens/main/ChangePasswordScreen';
 import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -184,6 +185,7 @@ export default function RootNavigator() {
                     <Stack.Screen name="ShippingAddress" component={ShippingAddressScreen} />
                     <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
                     <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+                    <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
                     <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                 </Stack.Group>
             ) : (
