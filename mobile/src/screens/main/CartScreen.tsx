@@ -48,27 +48,25 @@ export default function CartScreen() {
     const handleIncreaseQuantity = async (productId: string, cartItemId: string, currentQuantity: number) => {
         if (!userId) return;
 
+        // Optimistic update — feels instant to the user
+        updateQuantity(cartItemId, currentQuantity + 1);
+
         try {
-            // Ask server for 1 extra lock
             const response = await fetch(`${API_URL}/cart/reserve`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ product_id: productId, quantity: 1, user_clerk_id: userId })
             });
-            const data = await response.json();
 
             if (!response.ok) {
-                // If 409 Conflict, it means the stock is empty
+                // Stock unavailable — roll back the optimistic increment
+                updateQuantity(cartItemId, currentQuantity);
                 Alert.alert('Maximum Reached', 'There is no more stock available for this item.');
-                return;
             }
-
-            // Successfully secured the extra unit lock, now increment local UI
-            updateQuantity(cartItemId, currentQuantity + 1);
-
         } catch (error) {
+            // Network error — roll back
+            updateQuantity(cartItemId, currentQuantity);
             console.error('Failed to increase quantity lock', error);
-            Alert.alert('Network Error', 'Could not verify stock quantity.');
         }
     };
 
@@ -80,22 +78,18 @@ export default function CartScreen() {
             return;
         }
 
-        try {
-            // Surrender 1 lock to the public pool
-            await fetch(`${API_URL}/cart/release-partial`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: productId, user_clerk_id: userId })
-            });
+        // Optimistic update — feels instant
+        updateQuantity(cartItemId, currentQuantity - 1);
 
-            // Decrease local UI
-            updateQuantity(cartItemId, currentQuantity - 1);
-
-        } catch (error) {
+        // Fire-and-forget: release 1 lock in the background
+        fetch(`${API_URL}/cart/release-partial`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId, user_clerk_id: userId })
+        }).catch(error => {
             console.error('Failed to release partial quantity lock', error);
-            // It's safer to just let them decrement the UI locally anyway if there's a network glitch
-            updateQuantity(cartItemId, currentQuantity - 1);
-        }
+            // Don't roll back — the UI decrement is safe, cron will handle expiry
+        });
     };
 
     useEffect(() => {
@@ -116,42 +110,6 @@ export default function CartScreen() {
     const cardBgColor = isDarkMode ? '#1e1e1e' : '#fff';
     const borderColor = isDarkMode ? '#333' : '#f0f0f0';
     const imgBgColor = isDarkMode ? '#333' : '#f5f5f5';
-
-    if (isInitialLoading) {
-        return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
-                <CartScreenSkeleton />
-            </SafeAreaView>
-        );
-    }
-
-    if (items.length === 0) {
-        return (
-            <SafeAreaView style={[styles.emptyContainer, { backgroundColor: bgColor }]}>
-                <View style={[styles.emptyIconContainer, { backgroundColor: cardBgColor }]}>
-                    <Ionicons name="bag-handle-outline" size={48} color={textColor} />
-                </View>
-                <Typography style={[styles.emptyTitle, { color: textColor }]}>Your bag is empty</Typography>
-                <Typography style={[styles.emptySubtitle, { color: subtextColor }]}>
-                    Discover the latest curated collections and secure your favorite pieces.
-                </Typography>
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Home')}
-                    style={styles.brutalistButton}
-                    activeOpacity={0.8}
-                >
-                    <LinearGradient
-                        colors={['#000000', '#1a1a1a']}
-                        style={styles.buttonGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Typography style={styles.buttonText}>Shop Essentials</Typography>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </SafeAreaView>
-        );
-    }
 
     const [timeLeft, setTimeLeft] = useState<string>('');
 
@@ -193,6 +151,42 @@ export default function CartScreen() {
 
         return () => clearInterval(interval);
     }, [expiresAt, clearCart, navigation]);
+
+    if (isInitialLoading) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+                <CartScreenSkeleton />
+            </SafeAreaView>
+        );
+    }
+
+    if (items.length === 0) {
+        return (
+            <SafeAreaView style={[styles.emptyContainer, { backgroundColor: bgColor }]}>
+                <View style={[styles.emptyIconContainer, { backgroundColor: cardBgColor }]}>
+                    <Ionicons name="bag-handle-outline" size={48} color={textColor} />
+                </View>
+                <Typography style={[styles.emptyTitle, { color: textColor }]}>Your bag is empty</Typography>
+                <Typography style={[styles.emptySubtitle, { color: subtextColor }]}>
+                    Discover the latest curated collections and secure your favorite pieces.
+                </Typography>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('Home')}
+                    style={styles.brutalistButton}
+                    activeOpacity={0.8}
+                >
+                    <LinearGradient
+                        colors={['#000000', '#1a1a1a']}
+                        style={styles.buttonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Typography style={styles.buttonText}>Shop Essentials</Typography>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, ScrollView, TouchableOpacity, Image,
-    Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback
+    Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,6 +66,7 @@ export default function ProductDetailsScreen() {
     const [selectedSize, setSelectedSize] = useState(sizeOptions[0]);
     const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
     const [added, setAdded] = useState(false);
+    const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isSizeGuideVisible, setIsSizeGuideVisible] = useState(false);
     const [sizeCategory, setSizeCategory] = useState<'apparel' | 'footwear'>('apparel');
     const { toggle, isWishlisted } = useWishlistStore();
@@ -125,14 +126,14 @@ export default function ProductDetailsScreen() {
         }
 
         try {
-            // 1. Call the backend to secure a 10-minute reservation lock
+            setIsAddingToCart(true);
             const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
             const response = await fetch(`${API_URL}/cart/reserve`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     product_id: productId,
-                    quantity: 1, // Currently fixed to 1 from product details
+                    quantity: 1,
                     user_clerk_id: userId
                 })
             });
@@ -140,11 +141,12 @@ export default function ProductDetailsScreen() {
             const data = await response.json();
 
             if (!response.ok) {
-                alert(data.error || 'Failed to reserve item.');
+                alert(data.error || 'Sorry, this item is currently unavailable.');
                 return;
             }
 
-            // 2. Reservation successful! Add to local Zustand cart
+            // Always reserve the stock server-side.
+            // Timer only shows in cart when stock was exactly 1 (last-item urgency).
             addItem({
                 productId,
                 name: productName,
@@ -153,6 +155,7 @@ export default function ProductDetailsScreen() {
                 size: selectedSize,
                 color: selectedColor,
                 quantity: 1,
+                isReserved: liveStock === 1,
             });
 
             setAdded(true);
@@ -162,6 +165,8 @@ export default function ProductDetailsScreen() {
         } catch (error) {
             console.error('Reservation Error:', error);
             alert('A network error occurred while reserving the item.');
+        } finally {
+            setIsAddingToCart(false);
         }
     };
 
@@ -331,7 +336,7 @@ export default function ProductDetailsScreen() {
                     onPress={handleAddToCart}
                     style={styles.ctaButton}
                     activeOpacity={0.9}
-                    disabled={added || liveStock === 0}
+                    disabled={added || isAddingToCart || liveStock === 0}
                 >
                     <LinearGradient
                         colors={liveStock === 0 ? ['#9ca3af', '#6b7280'] : added ? ['#16a34a', '#15803d'] : ['#000', '#1a1a1a']}
@@ -339,7 +344,9 @@ export default function ProductDetailsScreen() {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     >
-                        {added ? (
+                        {isAddingToCart ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : added ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Ionicons name="checkmark-circle" size={20} color="#fff" />
                                 <Typography style={styles.ctaText}>Added to Bag</Typography>

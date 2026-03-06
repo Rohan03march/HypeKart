@@ -9,6 +9,7 @@ export interface CartItem {
     size?: string;
     color?: string;
     quantity: number;
+    isReserved?: boolean; // true only when stock was 1 and a 10-min server lock was created
 }
 
 interface CartState {
@@ -40,8 +41,8 @@ export const useCartStore = create<CartState>((set, get) => ({
                 return { items: updatedItems };
             }
 
-            // If the cart was previously empty, start the 10 minute countdown timer
-            const newExpiresAt = state.items.length === 0 ? Date.now() + 10 * 60 * 1000 : state.expiresAt;
+            // If the cart was previously empty AND this item is reserved (stock=1), start the 10-min timer
+            const newExpiresAt = (state.items.length === 0 && newItem.isReserved) ? Date.now() + 10 * 60 * 1000 : state.expiresAt;
 
             return {
                 items: [...state.items, { ...newItem, id: uniqueId }],
