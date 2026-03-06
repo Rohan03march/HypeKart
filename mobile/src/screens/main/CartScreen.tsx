@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useCartStore } from '../../store/cartStore';
@@ -14,7 +14,7 @@ import { useAuth } from '@clerk/clerk-expo';
 const FREE_SHIPPING_THRESHOLD = 1500;
 
 export default function CartScreen() {
-    const { items, removeItem, updateQuantity, getCartTotal, getCartCount } = useCartStore();
+    const { items, removeItem, updateQuantity, getCartTotal, getCartCount, expiresAt, clearCart } = useCartStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
     const navigation = useNavigation<any>();
     const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -42,6 +42,59 @@ export default function CartScreen() {
             console.error('Failed to release reservation:', error);
             // We ignore errors here since the item is out of their cart 
             // and the 10-minute timeout cron will catch it eventually anyway.
+        }
+    };
+
+    const handleIncreaseQuantity = async (productId: string, cartItemId: string, currentQuantity: number) => {
+        if (!userId) return;
+
+        try {
+            // Ask server for 1 extra lock
+            const response = await fetch(`${API_URL}/cart/reserve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, quantity: 1, user_clerk_id: userId })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                // If 409 Conflict, it means the stock is empty
+                Alert.alert('Maximum Reached', 'There is no more stock available for this item.');
+                return;
+            }
+
+            // Successfully secured the extra unit lock, now increment local UI
+            updateQuantity(cartItemId, currentQuantity + 1);
+
+        } catch (error) {
+            console.error('Failed to increase quantity lock', error);
+            Alert.alert('Network Error', 'Could not verify stock quantity.');
+        }
+    };
+
+    const handleDecreaseQuantity = async (productId: string, cartItemId: string, currentQuantity: number) => {
+        if (!userId) return;
+
+        if (currentQuantity <= 1) {
+            // Let the X button handle full removals
+            return;
+        }
+
+        try {
+            // Surrender 1 lock to the public pool
+            await fetch(`${API_URL}/cart/release-partial`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, user_clerk_id: userId })
+            });
+
+            // Decrease local UI
+            updateQuantity(cartItemId, currentQuantity - 1);
+
+        } catch (error) {
+            console.error('Failed to release partial quantity lock', error);
+            // It's safer to just let them decrement the UI locally anyway if there's a network glitch
+            updateQuantity(cartItemId, currentQuantity - 1);
         }
     };
 
@@ -100,6 +153,47 @@ export default function CartScreen() {
         );
     }
 
+    const [timeLeft, setTimeLeft] = useState<string>('');
+
+    // Timer Logic
+    useEffect(() => {
+        if (!expiresAt) {
+            setTimeLeft('');
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const now = Date.now();
+            const difference = expiresAt - now;
+
+            if (difference <= 0) {
+                clearInterval(interval);
+                setTimeLeft('00:00');
+
+                // Expiry Action
+                Alert.alert(
+                    "Time Expired",
+                    "Your 10-minute reservation has expired and the items have been released.",
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => {
+                                clearCart();
+                                navigation.navigate('Home');
+                            }
+                        }
+                    ]
+                );
+            } else {
+                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+                setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [expiresAt, clearCart, navigation]);
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
             {/* Header */}
@@ -115,6 +209,16 @@ export default function CartScreen() {
                     <Ionicons name="heart-outline" size={22} color={textColor} />
                 </TouchableOpacity>
             </View>
+
+            {/* Timer Banner */}
+            {timeLeft !== '' && (
+                <View style={{ backgroundColor: '#000', paddingVertical: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+                    <Ionicons name="time-outline" size={18} color="#fff" />
+                    <Typography style={{ color: '#fff', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }}>
+                        Items reserved for <Typography style={{ color: '#ff3b30' }}>{timeLeft}</Typography>
+                    </Typography>
+                </View>
+            )}
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
 
@@ -170,14 +274,14 @@ export default function CartScreen() {
                                     <View style={[styles.quantityControl, { backgroundColor: cardBgColor, borderColor: borderColor }]}>
                                         <TouchableOpacity
                                             style={styles.qtyBtn}
-                                            onPress={() => updateQuantity(item.id, item.quantity - 1)}
+                                            onPress={() => handleDecreaseQuantity(item.productId, item.id, item.quantity)}
                                         >
                                             <Ionicons name="remove" size={16} color={textColor} />
                                         </TouchableOpacity>
                                         <Typography style={[styles.qtyText, { color: textColor }]}>{item.quantity}</Typography>
                                         <TouchableOpacity
                                             style={styles.qtyBtn}
-                                            onPress={() => updateQuantity(item.id, item.quantity + 1)}
+                                            onPress={() => handleIncreaseQuantity(item.productId, item.id, item.quantity)}
                                         >
                                             <Ionicons name="add" size={16} color={textColor} />
                                         </TouchableOpacity>

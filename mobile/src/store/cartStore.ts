@@ -13,6 +13,7 @@ export interface CartItem {
 
 interface CartState {
     items: CartItem[];
+    expiresAt: number | null;
     addItem: (item: Omit<CartItem, 'id'>) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
@@ -23,6 +24,7 @@ interface CartState {
 
 export const useCartStore = create<CartState>((set, get) => ({
     items: [],
+    expiresAt: null,
 
     addItem: (newItem) => {
         set((state) => {
@@ -38,17 +40,24 @@ export const useCartStore = create<CartState>((set, get) => ({
                 return { items: updatedItems };
             }
 
-            // Otherwise add as new cart item
+            // If the cart was previously empty, start the 10 minute countdown timer
+            const newExpiresAt = state.items.length === 0 ? Date.now() + 10 * 60 * 1000 : state.expiresAt;
+
             return {
-                items: [...state.items, { ...newItem, id: uniqueId }]
+                items: [...state.items, { ...newItem, id: uniqueId }],
+                expiresAt: newExpiresAt
             };
         });
     },
 
     removeItem: (id) => {
-        set((state) => ({
-            items: state.items.filter((item) => item.id !== id),
-        }));
+        set((state) => {
+            const newItems = state.items.filter((item) => item.id !== id);
+            return {
+                items: newItems,
+                expiresAt: newItems.length === 0 ? null : state.expiresAt
+            };
+        });
     },
 
     updateQuantity: (id, quantity) => {
@@ -61,7 +70,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         }));
     },
 
-    clearCart: () => set({ items: [] }),
+    clearCart: () => set({ items: [], expiresAt: null }),
 
     getCartTotal: () => {
         return get().items.reduce((total, item) => total + (item.price * item.quantity), 0);
