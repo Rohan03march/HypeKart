@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { CartScreenSkeleton } from '../../components/ui/SkeletonLoader';
+import { useAuth } from '@clerk/clerk-expo';
 
 const FREE_SHIPPING_THRESHOLD = 1500;
 
@@ -17,6 +18,32 @@ export default function CartScreen() {
     const isDarkMode = useThemeStore(s => s.isDarkMode);
     const navigation = useNavigation<any>();
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const { userId } = useAuth();
+
+    const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+    const handleRemoveItem = async (productId: string, cartItemId: string) => {
+        // 1. Instantly remove from local UI so it feels snappy
+        removeItem(cartItemId);
+
+        if (!userId) return;
+
+        // 2. Tell backend to surrender the 10-minute reservation early
+        try {
+            await fetch(`${API_URL}/cart/release`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId,
+                    user_clerk_id: userId
+                })
+            });
+        } catch (error) {
+            console.error('Failed to release reservation:', error);
+            // We ignore errors here since the item is out of their cart 
+            // and the 10-minute timeout cron will catch it eventually anyway.
+        }
+    };
 
     useEffect(() => {
         const t = setTimeout(() => setIsInitialLoading(false), 700);
@@ -132,7 +159,7 @@ export default function CartScreen() {
                                         <Typography style={[styles.itemName, { color: textColor }]} numberOfLines={2}>{item.name}</Typography>
                                         <Typography style={[styles.itemMeta, { color: subtextColor }]}>Size: {item.size}  |  Color: {item.color}</Typography>
                                     </View>
-                                    <TouchableOpacity onPress={() => removeItem(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                    <TouchableOpacity onPress={() => handleRemoveItem(item.productId, item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                         <Ionicons name="close" size={20} color={subtextColor} />
                                     </TouchableOpacity>
                                 </View>
