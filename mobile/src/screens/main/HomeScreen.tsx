@@ -319,8 +319,10 @@ export default function HomeScreen() {
                 const text = await bannerResponse.text();
                 try {
                     const bannerData = JSON.parse(text);
-                    if (bannerResponse.ok && bannerData && bannerData.length > 0) {
-                        setBanners(bannerData);
+                    // API returns { success: true, banners: [...] }
+                    const bannerList = Array.isArray(bannerData) ? bannerData : (bannerData?.banners ?? []);
+                    if (bannerResponse.ok && bannerList.length > 0) {
+                        setBanners(bannerList);
                     }
                 } catch (e) {
                     console.error("Banners API returned non-JSON:", text.substring(0, 100));
@@ -328,6 +330,7 @@ export default function HomeScreen() {
             } catch (err) {
                 console.error("Error fetching banners", err);
             }
+
 
             const selectedCat = CATEGORIES.find(c => c.id === activeCategory);
             const isAll = !selectedCat || selectedCat.id === '1';
@@ -647,11 +650,12 @@ export default function HomeScreen() {
                                                 <View style={styles.heroContent}>
                                                     <View style={styles.heroTag}>
                                                         <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-                                                        <Typography style={styles.heroTagText}>{isApiBanner ? 'FEATURED' : item.tag}</Typography>
+                                                        <Typography style={styles.heroTagText}>{isApiBanner ? (item.cta_text || 'FEATURED') : item.tag}</Typography>
                                                     </View>
-                                                    <Typography style={styles.heroTitle} numberOfLines={1}>{item.title || 'Hype Drops'}</Typography>
-                                                    <Typography style={styles.heroSubtitle}>{item.subtitle || 'Discover the latest heat.'}</Typography>
+                                                    <Typography style={styles.heroTitle} numberOfLines={1}>{isApiBanner ? (item.title || 'New Arrivals') : item.title || 'Hype Drops'}</Typography>
+                                                    <Typography style={styles.heroSubtitle}>{isApiBanner ? (item.description || 'Shop the latest drops.') : item.subtitle || 'Discover the latest heat.'}</Typography>
                                                 </View>
+
                                             </TouchableOpacity>
                                         );
                                     }}

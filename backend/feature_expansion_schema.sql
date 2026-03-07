@@ -43,3 +43,8 @@ ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Reviews are viewable by everyone." ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "Coupons are viewable by everyone." ON public.coupons FOR SELECT USING (true);
 CREATE POLICY "Banners are viewable by everyone." ON public.banners FOR SELECT USING (true);
+
+-- 6. Add title, description, and CTA text columns to banners
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS cta_text TEXT;

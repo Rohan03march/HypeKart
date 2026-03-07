@@ -23,13 +23,16 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { image_url, link, is_active, order_index } = body;
+        const { image_url, link, is_active, order_index, title, description, cta_text } = body;
 
         const { data: banner, error } = await supabaseAdmin
             .from('banners')
             .insert([
                 {
                     image_url,
+                    title: title ?? null,
+                    description: description ?? null,
+                    cta_text: cta_text ?? null,
                     link,
                     is_active: is_active ?? true,
                     order_index: order_index ?? 0

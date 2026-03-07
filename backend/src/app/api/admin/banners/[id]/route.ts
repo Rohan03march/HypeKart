@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { invalidateCache } from '@/lib/redis';
 
 export async function PUT(
@@ -13,7 +13,7 @@ export async function PUT(
         // Explicitly destructure what we want to update to avoid injecting unwanted fields
         const { image_url, link, is_active, order_index } = body;
 
-        const { data: banner, error } = await supabase
+        const { data: banner, error } = await supabaseAdmin
             .from('banners')
             .update({ image_url, link, is_active, order_index })
             .eq('id', id)
@@ -38,7 +38,7 @@ export async function DELETE(
     try {
         const { id } = await params;
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('banners')
             .delete()
             .eq('id', id);
