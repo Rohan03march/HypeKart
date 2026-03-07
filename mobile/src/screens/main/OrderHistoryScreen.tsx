@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
-import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
@@ -10,7 +10,6 @@ import { getUserOrders } from '../../lib/getUserOrders';
 import { useCartStore } from '../../store/cartStore';
 import { useCacheStore } from '../../store/cacheStore';
 import { useThemeStore } from '../../store/themeStore';
-import { AirbnbRating } from 'react-native-ratings';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -88,6 +87,39 @@ const TrackingTimeline = ({ status, isDarkMode }: { status: string, isDarkMode: 
     );
 };
 
+const CustomStarRating = ({ onRate, disabled }: { onRate: (rating: number) => void; disabled: boolean }) => {
+    const [hoverRating, setHoverRating] = useState(0);
+    const [selectedRating, setSelectedRating] = useState(0);
+
+    const handlePress = (rating: number) => {
+        if (disabled) return;
+        setSelectedRating(rating);
+        onRate(rating);
+    };
+
+    return (
+        <View style={{ flexDirection: 'row', gap: 2 }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity
+                    key={star}
+                    disabled={disabled}
+                    onPress={() => handlePress(star)}
+                    onPressIn={() => !disabled && setHoverRating(star)}
+                    onPressOut={() => !disabled && setHoverRating(0)}
+                    activeOpacity={0.7}
+                    style={{ padding: 4 }}
+                >
+                    <Ionicons
+                        name={star <= (hoverRating || selectedRating) ? "star" : "star-outline"}
+                        size={20}
+                        color={star <= (hoverRating || selectedRating) ? "#fbbf24" : "#9ca3af"}
+                    />
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+};
+
 const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, onRateProduct, ratingLoadingId, cancellingId, isDarkMode }: any) => {
     const items: any[] = order.order_items || [];
     const statusObj = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
@@ -152,17 +184,28 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, onRateProduct
                             {[item.size, item.color, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
                         </Typography>
                         {order.status === 'Delivered' && (
-                            <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography style={{ fontSize: 13, color: subtextColor, marginRight: 8, fontWeight: '600' }}>Rate this item:</Typography>
-                                <AirbnbRating
-                                    count={5}
-                                    defaultRating={0}
-                                    size={16}
-                                    showRating={false}
-                                    selectedColor="#fbbf24"
-                                    onFinishRating={(rating) => onRateProduct(item.product_id, rating)}
-                                />
-                                {ratingLoadingId === item.product_id && <ActivityIndicator size="small" color="#fbbf24" style={{ marginLeft: 8 }} />}
+                            <View style={{
+                                marginTop: 16,
+                                backgroundColor: isDarkMode ? '#1a1a1a' : '#f9fafb',
+                                padding: 12,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: isDarkMode ? '#333' : '#f3f4f6',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="star-outline" size={16} color={subtextColor} style={{ marginRight: 6 }} />
+                                    <Typography style={{ fontSize: 13, color: textColor, fontWeight: '600' }}>Rate Product</Typography>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <CustomStarRating
+                                        onRate={(rating: number) => onRateProduct(item.product_id, rating)}
+                                        disabled={ratingLoadingId === item.product_id}
+                                    />
+                                    {ratingLoadingId === item.product_id && <ActivityIndicator size="small" color="#fbbf24" style={{ marginLeft: 8 }} />}
+                                </View>
                             </View>
                         )}
                     </View>
@@ -219,6 +262,7 @@ export default function OrderHistoryScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [ratingLoadingId, setRatingLoadingId] = useState<string | null>(null);
+    const [activeFilter, setActiveFilter] = useState<'Today' | 'Last 7 Days' | 'Last 30 Days' | 'All Time'>('Today');
     const { getOrders, setOrders: cacheOrders } = useCacheStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
 
@@ -276,6 +320,30 @@ export default function OrderHistoryScreen() {
     }, [user?.id, getOrders, cacheOrders]);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+    const filteredOrders = useMemo(() => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today
+
+        return orders.filter(order => {
+            if (activeFilter === 'All Time') return true;
+
+            const orderDate = new Date(order.created_at);
+            const diffTime = Math.abs(new Date().getTime() - orderDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (activeFilter === 'Today') {
+                return orderDate >= now;
+            }
+            if (activeFilter === 'Last 7 Days') {
+                return diffDays <= 7;
+            }
+            if (activeFilter === 'Last 30 Days') {
+                return diffDays <= 30;
+            }
+            return true;
+        });
+    }, [orders, activeFilter]);
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
@@ -373,19 +441,49 @@ export default function OrderHistoryScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
+            <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                    {['Today', 'Last 7 Days', 'Last 30 Days', 'All Time'].map((filter) => {
+                        const isActive = activeFilter === filter;
+                        return (
+                            <TouchableOpacity
+                                key={filter}
+                                onPress={() => setActiveFilter(filter as any)}
+                                style={{
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 8,
+                                    borderRadius: 20,
+                                    backgroundColor: isActive ? mainTextColor : headerBtnBg,
+                                    borderWidth: 1,
+                                    borderColor: isActive ? mainTextColor : (isDarkMode ? '#333' : '#e5e5e5')
+                                }}
+                            >
+                                <Typography style={{
+                                    color: isActive ? mainBgColor : mainSubtextColor,
+                                    fontWeight: isActive ? '600' : '400',
+                                    fontSize: 13
+                                }}>
+                                    {filter}
+                                </Typography>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+
             {isLoading ? (
                 <ActivityIndicator color={mainTextColor} style={{ marginTop: 60 }} />
-            ) : orders.length === 0 ? (
+            ) : filteredOrders.length === 0 ? (
                 <View style={styles.emptyState}>
                     <View style={[styles.emptyIcon, { backgroundColor: headerBtnBg }]}>
                         <Ionicons name="bag-handle-outline" size={36} color={mainSubtextColor} />
                     </View>
-                    <Typography style={[styles.emptyTitle, { color: mainTextColor }]}>No orders yet</Typography>
-                    <Typography style={[styles.emptySubtitle, { color: mainSubtextColor }]}>Your order history will appear here.</Typography>
+                    <Typography style={[styles.emptyTitle, { color: mainTextColor }]}>No orders found</Typography>
+                    <Typography style={[styles.emptySubtitle, { color: mainSubtextColor }]}>Try changing your filter selection.</Typography>
                 </View>
             ) : (
                 <FlatList
-                    data={orders}
+                    data={filteredOrders}
                     keyExtractor={(order) => order.id}
                     renderItem={({ item: order }) => (
                         <OrderCard
