@@ -21,7 +21,7 @@ export default function CartScreen() {
     const { userId } = useAuth();
 
     const [promoCode, setPromoCode] = useState('');
-    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_value: number; discount_type: 'percentage' | 'fixed' } | null>(null);
+    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountValue: number; discountType: 'percentage' | 'fixed' } | null>(null);
     const [isApplyingPromo, setIsApplyingPromo] = useState(false);
     const [promoError, setPromoError] = useState('');
 
@@ -138,10 +138,10 @@ export default function CartScreen() {
     // Calculate Discount
     let discountAmount = 0;
     if (appliedCoupon) {
-        if (appliedCoupon.discount_type === 'percentage') {
-            discountAmount = total * (appliedCoupon.discount_value / 100);
+        if (appliedCoupon.discountType === 'percentage') {
+            discountAmount = total * (appliedCoupon.discountValue / 100);
         } else {
-            discountAmount = appliedCoupon.discount_value;
+            discountAmount = appliedCoupon.discountValue;
         }
     }
     const discountedTotal = Math.max(0, total - discountAmount);
