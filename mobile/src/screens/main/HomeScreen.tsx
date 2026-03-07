@@ -113,6 +113,7 @@ export default function HomeScreen() {
     const isDarkMode = useThemeStore(s => s.isDarkMode);
 
     // Supabase Data States
+    const [banners, setBanners] = useState<any[]>([]);
     const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
     const [newArrivals, setNewArrivals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -310,6 +311,24 @@ export default function HomeScreen() {
         }
 
         try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+            // Fetch Banners
+            try {
+                const bannerResponse = await fetch(`${API_URL}/banners`);
+                const text = await bannerResponse.text();
+                try {
+                    const bannerData = JSON.parse(text);
+                    if (bannerResponse.ok && bannerData && bannerData.length > 0) {
+                        setBanners(bannerData);
+                    }
+                } catch (e) {
+                    console.error("Banners API returned non-JSON:", text.substring(0, 100));
+                }
+            } catch (err) {
+                console.error("Error fetching banners", err);
+            }
+
             const selectedCat = CATEGORIES.find(c => c.id === activeCategory);
             const isAll = !selectedCat || selectedCat.id === '1';
 
@@ -555,7 +574,7 @@ export default function HomeScreen() {
                                     height={400}
                                     autoPlay={!isSearching}
                                     autoPlayInterval={3500}
-                                    data={CAROUSEL_DATA}
+                                    data={banners.length > 0 ? banners : CAROUSEL_DATA}
                                     scrollAnimationDuration={1000}
                                     onSnapToItem={(index) => setActiveIndex(index)}
                                     mode="parallax"
@@ -563,36 +582,54 @@ export default function HomeScreen() {
                                         parallaxScrollingScale: 0.9,
                                         parallaxScrollingOffset: 50,
                                     }}
-                                    renderItem={({ item }) => (
-                                        <TouchableOpacity
-                                            activeOpacity={0.9}
-                                            style={styles.heroOuterCard}
-                                            onPress={() => {
-                                                const cat = CATEGORIES.find(c => c.id === item.categoryId);
-                                                if (cat) {
-                                                    navigation.navigate('Catalog', { title: item.title, action: 'category', categoryName: cat.name });
-                                                }
-                                            }}
-                                        >
-                                            <Image
-                                                source={item.image}
-                                                style={StyleSheet.absoluteFillObject}
-                                                resizeMode="cover"
-                                            />
-                                            <LinearGradient
-                                                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                                                style={StyleSheet.absoluteFillObject}
-                                            />
-                                            <View style={styles.heroContent}>
-                                                <View style={styles.heroTag}>
-                                                    <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-                                                    <Typography style={styles.heroTagText}>{item.tag}</Typography>
+                                    renderItem={({ item, index }) => {
+                                        const isApiBanner = banners.length > 0;
+                                        const imageUrl = isApiBanner ? { uri: item.image_url } : item.image;
+                                        return (
+                                            <TouchableOpacity
+                                                activeOpacity={0.9}
+                                                style={styles.heroOuterCard}
+                                                onPress={() => {
+                                                    if (isApiBanner && item.link) {
+                                                        // Simplistic router handler
+                                                        if (item.link.includes('category/')) {
+                                                            const catName = item.link.split('/').pop();
+                                                            const cat = CATEGORIES.find(c => c.name.toLowerCase() === catName?.toLowerCase()) || CATEGORIES[1];
+                                                            navigation.navigate('Catalog', { title: cat.name, action: 'category', categoryName: cat.name });
+                                                        } else {
+                                                            const cat = CATEGORIES.find(c => c.id === (item.categoryId || '1'));
+                                                            if (cat) {
+                                                                navigation.navigate('Catalog', { title: item.title || 'Collection', action: 'category', categoryName: cat.name });
+                                                            }
+                                                        }
+                                                    } else if (!isApiBanner) {
+                                                        const cat = CATEGORIES.find(c => c.id === item.categoryId);
+                                                        if (cat) {
+                                                            navigation.navigate('Catalog', { title: item.title, action: 'category', categoryName: cat.name });
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <Image
+                                                    source={imageUrl}
+                                                    style={StyleSheet.absoluteFillObject}
+                                                    resizeMode="cover"
+                                                />
+                                                <LinearGradient
+                                                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                                                    style={StyleSheet.absoluteFillObject}
+                                                />
+                                                <View style={styles.heroContent}>
+                                                    <View style={styles.heroTag}>
+                                                        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+                                                        <Typography style={styles.heroTagText}>{isApiBanner ? 'FEATURED' : item.tag}</Typography>
+                                                    </View>
+                                                    <Typography style={styles.heroTitle} numberOfLines={1}>{item.title || 'Hype Drops'}</Typography>
+                                                    <Typography style={styles.heroSubtitle}>{item.subtitle || 'Discover the latest heat.'}</Typography>
                                                 </View>
-                                                <Typography style={styles.heroTitle} numberOfLines={1}>{item.title}</Typography>
-                                                <Typography style={styles.heroSubtitle}>{item.subtitle}</Typography>
-                                            </View>
-                                        </TouchableOpacity>
-                                    )}
+                                            </TouchableOpacity>
+                                        );
+                                    }}
                                 />
                             </View>
 
@@ -725,6 +762,41 @@ export default function HomeScreen() {
 
 
 
+
+                            {/* Trending Now */}
+                            {trendingProducts.length > 0 && (
+                                <>
+                                    <View style={styles.sectionHeader}>
+                                        <Typography style={[styles.sectionTitle, { color: textColor }]}>Trending</Typography>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                            <TouchableOpacity onPress={() => {
+                                                const cat = CATEGORIES.find(c => c.id === activeCategory);
+                                                navigation.navigate('Catalog', { title: 'Trending', action: 'trending', categoryName: cat?.name });
+                                            }}>
+                                                <Typography style={[styles.seeAllText, { color: subtextColor }]}>See all</Typography>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        style={styles.horizontalScroll}
+                                        contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 8, gap: 16 }}
+                                    >
+                                        {trendingProducts.map((item) => (
+                                            <ProductCard
+                                                key={`trending-${item.id}`}
+                                                prod={item}
+                                                onPress={() => navigation.navigate('ProductDetails', { product: item })}
+                                                onToggleWishlist={handleToggleWishlist}
+                                                isWishlisted={isWishlisted(item.id)}
+                                                isDarkMode={isDarkMode}
+                                            />
+                                        ))}
+                                    </ScrollView>
+                                </>
+                            )}
 
                             {/* New Arrivals Grid */}
                             <View style={styles.sectionHeader}>

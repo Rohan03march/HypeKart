@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, StyleSheet, Platform, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography } from '../../components/ui/Typography';
 import { useCartStore } from '../../store/cartStore';
@@ -20,7 +20,42 @@ export default function CartScreen() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const { userId } = useAuth();
 
+    const [promoCode, setPromoCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_value: number; discount_type: 'percentage' | 'fixed' } | null>(null);
+    const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+    const [promoError, setPromoError] = useState('');
+
     const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+    const handleApplyPromo = async () => {
+        if (!promoCode.trim()) return;
+
+        setIsApplyingPromo(true);
+        setPromoError('');
+        try {
+            const response = await fetch(`${API_URL}/cart/apply-coupon`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: promoCode, cartTotal: total })
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setAppliedCoupon(data.coupon);
+                setPromoCode('');
+            } else {
+                setPromoError(data.error || 'Invalid or expired promo code.');
+            }
+        } catch (err) {
+            setPromoError('Network error. Please try again.');
+        } finally {
+            setIsApplyingPromo(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+    };
 
     const handleRemoveItem = async (productId: string, cartItemId: string) => {
         // 1. Instantly remove from local UI so it feels snappy
@@ -99,10 +134,22 @@ export default function CartScreen() {
 
     const total = getCartTotal();
     const itemCount = getCartCount();
-    const tax = total * 0.18; // 18% GST
-    const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
-    const finalTotal = total + tax + shipping;
-    const shippingProgress = Math.min(total / FREE_SHIPPING_THRESHOLD, 1);
+
+    // Calculate Discount
+    let discountAmount = 0;
+    if (appliedCoupon) {
+        if (appliedCoupon.discount_type === 'percentage') {
+            discountAmount = total * (appliedCoupon.discount_value / 100);
+        } else {
+            discountAmount = appliedCoupon.discount_value;
+        }
+    }
+    const discountedTotal = Math.max(0, total - discountAmount);
+
+    const tax = discountedTotal * 0.18; // 18% GST (applied after discount)
+    const shipping = discountedTotal >= FREE_SHIPPING_THRESHOLD ? 0 : 99;
+    const finalTotal = discountedTotal + tax + shipping;
+    const shippingProgress = Math.min(discountedTotal / FREE_SHIPPING_THRESHOLD, 1);
 
     const bgColor = isDarkMode ? '#121212' : '#fafafa';
     const textColor = isDarkMode ? '#fff' : '#000';
@@ -286,6 +333,53 @@ export default function CartScreen() {
                     ))}
                 </View>
 
+                {/* Promo Code Input */}
+                <View style={[styles.promoContainer, { backgroundColor: cardBgColor }]}>
+                    {appliedCoupon ? (
+                        <View style={[styles.appliedCouponCard, { backgroundColor: isDarkMode ? 'rgba(34, 197, 94, 0.1)' : '#f0fdf4', borderColor: isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#bbf7d0' }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="pricetag" size={16} color="#16a34a" />
+                                <Typography style={[styles.appliedCouponText, { color: '#16a34a' }]}>{appliedCoupon.code} Applied</Typography>
+                            </View>
+                            <TouchableOpacity onPress={handleRemoveCoupon}>
+                                <Ionicons name="close-circle" size={20} color="#16a34a" />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View>
+                            <Typography style={[styles.promoTitle, { color: textColor }]}>Have a promo code?</Typography>
+                            <View style={[styles.promoInputRow, { borderColor: borderColor }]}>
+                                <TextInput
+                                    style={[styles.promoInput, { color: textColor }]}
+                                    placeholder="Enter your code here"
+                                    placeholderTextColor={subtextColor}
+                                    value={promoCode}
+                                    onChangeText={(text) => {
+                                        setPromoCode(text.toUpperCase());
+                                        setPromoError('');
+                                    }}
+                                    autoCapitalize="characters"
+                                    editable={!isApplyingPromo}
+                                />
+                                <TouchableOpacity
+                                    style={[styles.promoApplyBtn, { backgroundColor: promoCode.trim() ? textColor : borderColor }]}
+                                    onPress={handleApplyPromo}
+                                    disabled={!promoCode.trim() || isApplyingPromo}
+                                >
+                                    {isApplyingPromo ? (
+                                        <ActivityIndicator size="small" color={bgColor} />
+                                    ) : (
+                                        <Typography style={[styles.promoApplyText, { color: bgColor }]}>Apply</Typography>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                            {promoError ? (
+                                <Typography style={styles.promoErrorText}>{promoError}</Typography>
+                            ) : null}
+                        </View>
+                    )}
+                </View>
+
                 {/* Order Summary */}
                 <View style={[styles.summaryContainer, { backgroundColor: cardBgColor }]}>
                     <Typography style={[styles.summaryTitle, { color: textColor }]}>Order Summary</Typography>
@@ -294,6 +388,14 @@ export default function CartScreen() {
                         <Typography style={[styles.summaryLabel, { color: subtextColor }]}>Subtotal</Typography>
                         <Typography style={[styles.summaryValue, { color: textColor }]}>₹{total.toLocaleString('en-IN')}</Typography>
                     </View>
+
+                    {discountAmount > 0 && (
+                        <View style={styles.summaryRow}>
+                            <Typography style={[styles.summaryLabel, { color: '#16a34a' }]}>Discount</Typography>
+                            <Typography style={[styles.summaryValue, { color: '#16a34a' }]}>-₹{discountAmount.toLocaleString('en-IN')}</Typography>
+                        </View>
+                    )}
+
                     <View style={styles.summaryRow}>
                         <Typography style={[styles.summaryLabel, { color: subtextColor }]}>Estimated Tax</Typography>
                         <Typography style={[styles.summaryValue, { color: textColor }]}>₹{tax.toLocaleString('en-IN')}</Typography>
@@ -587,5 +689,67 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 12,
         elevation: 5,
+    },
+    // Promo Code Styles
+    promoContainer: {
+        marginHorizontal: 24,
+        marginTop: 24,
+        padding: 20,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    promoTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        marginBottom: 12,
+    },
+    promoInputRow: {
+        flexDirection: 'row',
+        borderWidth: 1,
+        borderRadius: 12,
+        height: 48,
+        overflow: 'hidden',
+    },
+    promoInput: {
+        flex: 1,
+        paddingHorizontal: 16,
+        fontSize: 15,
+        fontWeight: '500',
+        letterSpacing: 1,
+    },
+    promoApplyBtn: {
+        paddingHorizontal: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    promoApplyText: {
+        fontSize: 14,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    promoErrorText: {
+        color: '#dc2626',
+        fontSize: 12,
+        marginTop: 8,
+        fontWeight: '500',
+    },
+    appliedCouponCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    appliedCouponText: {
+        fontSize: 15,
+        fontWeight: '700',
+        letterSpacing: 0.5,
     }
 });

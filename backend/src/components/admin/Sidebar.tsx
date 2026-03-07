@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Package, ShoppingCart, Users, LayoutDashboard, Settings, Shield, LogOut } from "lucide-react";
+import { Package, ShoppingCart, Users, LayoutDashboard, Settings, Shield, LogOut, Ticket, Image as ImageIcon } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface NavItem {
@@ -19,6 +19,8 @@ const navItems: NavItem[] = [
     { name: "Products", href: "/admin/products", icon: Package, allowedRoles: ['super_admin', 'admin', 'inventory_manager'] },
     { name: "Orders", href: "/admin/orders", icon: ShoppingCart, allowedRoles: ['super_admin', 'admin'] },
     { name: "Customers", href: "/admin/customers", icon: Users, allowedRoles: ['super_admin', 'admin'] },
+    { name: "Coupons", href: "/admin/coupons", icon: Ticket, allowedRoles: ['super_admin', 'admin'] },
+    { name: "Banners", href: "/admin/settings/banners", icon: ImageIcon, allowedRoles: ['super_admin', 'admin'] },
     { name: "Team", href: "/admin/team", icon: Shield, allowedRoles: ['super_admin', 'admin'] },
     { name: "Settings", href: "/admin/settings", icon: Settings, allowedRoles: ['super_admin', 'admin'] },
 ];

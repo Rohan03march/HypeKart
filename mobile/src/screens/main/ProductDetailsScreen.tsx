@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View, ScrollView, TouchableOpacity, Image,
-    Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback, ActivityIndicator
-} from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, Dimensions, StyleSheet, StatusBar, Modal, TouchableWithoutFeedback, ActivityIndicator, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '../../store/cartStore';
@@ -15,7 +12,8 @@ import { useWishlistStore } from '../../store/wishlistStore';
 import Carousel from 'react-native-reanimated-carousel';
 import { useThemeStore } from '../../store/themeStore';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/clerk-expo';
+import { AirbnbRating } from 'react-native-ratings';
 
 const { width } = Dimensions.get('window');
 
@@ -76,6 +74,68 @@ export default function ProductDetailsScreen() {
 
     const [liveStock, setLiveStock] = useState<number>(productStock);
 
+    // Reviews State
+    const [averageRating, setAverageRating] = useState<number>(0);
+    const [totalReviews, setTotalReviews] = useState<number>(0);
+    const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+    // Recommendations State
+    const [recommendations, setRecommendations] = useState<any[]>([]);
+    const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+
+    const { userId } = useAuth();
+    const { user } = useUser();
+
+    // Fetch Recommendations
+    const fetchRecommendations = async () => {
+        if (!productId) return;
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+            const categoryId = product?.category || '';
+            const response = await fetch(`${API_URL}/products/recommendations?productId=${productId}&categoryId=${categoryId}`);
+            const text = await response.text();
+            try {
+                const data = JSON.parse(text);
+                if (response.ok && data.success) {
+                    setRecommendations(data.products || []);
+                }
+            } catch (e) {
+                console.error("Recommendations API returned non-JSON:", text.substring(0, 100));
+            }
+        } catch (error) {
+            console.error('Failed to fetch recommendations', error);
+        } finally {
+            setIsLoadingRecommendations(false);
+        }
+    };
+
+    // Fetch Reviews
+    const fetchReviews = async () => {
+        if (!productId) return;
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+            const response = await fetch(`${API_URL}/reviews?productId=${productId}`);
+            const text = await response.text();
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    setAverageRating(data.averageRating || 0);
+                    setTotalReviews(data.totalReviews || 0);
+                }
+            } catch (e) {
+                console.error("Reviews API returned non-JSON:", text.substring(0, 100));
+            }
+        } catch (error) {
+            console.error('Failed to fetch reviews', error);
+        } finally {
+            setIsLoadingReviews(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
+        fetchRecommendations();
+    }, [productId]);
+
     // Real-time Supabase subscription for stock updates
     useEffect(() => {
         if (!productId) return;
@@ -116,9 +176,7 @@ export default function ProductDetailsScreen() {
     const chipBorder = isDarkMode ? '#444' : '#f5f5f5';
     const imageBg = isDarkMode ? '#1e1e1e' : '#f3f3f3';
 
-    const { userId } = useAuth();
 
-    // ... we need more imports, I will do this in the next replacement
     const handleAddToCart = async () => {
         if (!userId) {
             alert('Please log in to add items to your bag.');
@@ -243,6 +301,20 @@ export default function ProductDetailsScreen() {
                         {productName}
                     </Typography>
 
+                    {/* Avg Rating & Reviews Link */}
+                    {totalReviews > 0 ? (
+                        <View style={styles.headerRatingRow}>
+                            <Ionicons name="star" size={16} color="#fbbf24" />
+                            <Typography style={[styles.headerRatingText, { color: textColor }]}>
+                                {averageRating} <Typography style={{ color: subtextColor }}>({totalReviews} reviews)</Typography>
+                            </Typography>
+                        </View>
+                    ) : (
+                        <View style={styles.headerRatingRow}>
+                            <Typography style={[styles.headerRatingText, { color: subtextColor }]}>No reviews yet</Typography>
+                        </View>
+                    )}
+
                     {/* Price below name */}
                     <View style={styles.priceRow}>
                         <Typography style={[styles.priceText, { color: textColor }]}>₹{productPrice.toLocaleString('en-IN')}</Typography>
@@ -324,6 +396,45 @@ export default function ProductDetailsScreen() {
                     <View style={styles.section}>
                         <Typography style={styles.sectionLabel}>DETAILS</Typography>
                         <Typography style={[styles.descriptionText, { color: subtextColor }]}>{productDescription}</Typography>
+                    </View>
+
+
+
+                    {/* Recommendations Section */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Typography style={[styles.sectionLabel, { fontSize: 16, fontWeight: '700', color: textColor, letterSpacing: 0, textTransform: 'none' }]}>
+                                You May Also Like
+                            </Typography>
+                        </View>
+                        {isLoadingRecommendations ? (
+                            <ActivityIndicator size="small" color={textColor} style={{ marginVertical: 20 }} />
+                        ) : recommendations.length === 0 ? (
+                            <Typography style={[styles.descriptionText, { color: subtextColor }]}>No recommendations available.</Typography>
+                        ) : (
+                            <FlatList
+                                horizontal
+                                data={recommendations}
+                                keyExtractor={(item) => item.id}
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingRight: 20, gap: 16 }}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.recommendationCard}
+                                        onPress={() => navigation.push('ProductDetails', { product: item })}
+                                    >
+                                        <View style={[styles.recImgWrapper, { backgroundColor: imageBg }]}>
+                                            <Image source={{ uri: item.images?.[0] || FALLBACK_IMAGE }} style={styles.recImg} resizeMode="cover" />
+                                        </View>
+                                        <View style={styles.recInfo}>
+                                            <Typography style={[styles.recBrand, { color: subtextColor }]} numberOfLines={1}>{item.brand}</Typography>
+                                            <Typography style={[styles.recTitle, { color: textColor }]} numberOfLines={1}>{item.title}</Typography>
+                                            <Typography style={[styles.recPrice, { color: textColor }]}>₹{item.base_price?.toLocaleString('en-IN')}</Typography>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        )}
                     </View>
 
                 </View>
@@ -452,6 +563,8 @@ export default function ProductDetailsScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+
         </View>
     );
 }
@@ -744,7 +857,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 24,
         paddingBottom: 40,
-        maxHeight: '70%',
+        maxHeight: '90%',
     },
     modalTabs: {
         flexDirection: 'row',
@@ -810,5 +923,114 @@ const styles = StyleSheet.create({
         color: '#888',
         marginTop: 24,
         lineHeight: 20,
+    },
+
+    // Reviews
+    headerRatingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 12,
+    },
+    headerRatingText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    reviewsList: {
+        marginTop: 12,
+    },
+    reviewItem: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+    },
+    reviewHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    reviewStars: {
+        flexDirection: 'row',
+        gap: 2,
+    },
+    reviewDate: {
+        fontSize: 12,
+    },
+    reviewComment: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    writeReviewContainer: {
+        marginTop: 12,
+    },
+    ratingContainer: {
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    writeReviewLabel: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    reviewInputContainer: {
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 32,
+        minHeight: 140,
+    },
+    reviewInput: {
+        fontSize: 15,
+        lineHeight: 24,
+        textAlignVertical: 'top',
+        height: '100%',
+    },
+    submitReviewBtn: {
+        paddingVertical: 18,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+    },
+    submitReviewBtnText: {
+        fontSize: 16,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+
+    // Recommendations
+    recommendationCard: {
+        width: width * 0.4,
+    },
+    recImgWrapper: {
+        width: '100%',
+        height: width * 0.5,
+        borderRadius: 16,
+        marginBottom: 10,
+        overflow: 'hidden',
+    },
+    recImg: {
+        width: '100%',
+        height: '100%',
+    },
+    recInfo: {
+        paddingHorizontal: 4,
+    },
+    recBrand: {
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    recTitle: {
+        fontSize: 13,
+        fontWeight: '500',
+        marginBottom: 2,
+    },
+    recPrice: {
+        fontSize: 14,
+        fontWeight: '700',
     },
 });

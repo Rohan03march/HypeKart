@@ -10,6 +10,7 @@ import { getUserOrders } from '../../lib/getUserOrders';
 import { useCartStore } from '../../store/cartStore';
 import { useCacheStore } from '../../store/cacheStore';
 import { useThemeStore } from '../../store/themeStore';
+import { AirbnbRating } from 'react-native-ratings';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -87,7 +88,7 @@ const TrackingTimeline = ({ status, isDarkMode }: { status: string, isDarkMode: 
     );
 };
 
-const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId, isDarkMode }: any) => {
+const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, onRateProduct, ratingLoadingId, cancellingId, isDarkMode }: any) => {
     const items: any[] = order.order_items || [];
     const statusObj = STATUS_COLORS[order.status] || STATUS_COLORS.Placed;
     const statusStyle = {
@@ -150,6 +151,20 @@ const OrderCard = memo(({ order, onRepurchase, onCancel, onReturn, cancellingId,
                         <Typography style={[styles.itemMeta, { color: subtextColor }]}>
                             {[item.size, item.color, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
                         </Typography>
+                        {order.status === 'Delivered' && (
+                            <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
+                                <Typography style={{ fontSize: 13, color: subtextColor, marginRight: 8, fontWeight: '600' }}>Rate this item:</Typography>
+                                <AirbnbRating
+                                    count={5}
+                                    defaultRating={0}
+                                    size={16}
+                                    showRating={false}
+                                    selectedColor="#fbbf24"
+                                    onFinishRating={(rating) => onRateProduct(item.product_id, rating)}
+                                />
+                                {ratingLoadingId === item.product_id && <ActivityIndicator size="small" color="#fbbf24" style={{ marginLeft: 8 }} />}
+                            </View>
+                        )}
                     </View>
                 </View>
             ))}
@@ -203,8 +218,35 @@ export default function OrderHistoryScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [ratingLoadingId, setRatingLoadingId] = useState<string | null>(null);
     const { getOrders, setOrders: cacheOrders } = useCacheStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
+
+    const handleRateProduct = async (productId: string, rating: number) => {
+        if (!user?.id) return;
+        setRatingLoadingId(productId);
+        try {
+            const res = await fetch(`${API_URL}/reviews`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId,
+                    userId: user.id,
+                    rating,
+                    comment: ''
+                })
+            });
+            if (res.ok) {
+                Alert.alert('Thanks for rating!', 'Your feedback helps other shoppers.');
+            } else {
+                Alert.alert('Error', 'Failed to submit rating.');
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Network error while submitting rating.');
+        } finally {
+            setRatingLoadingId(null);
+        }
+    };
 
     const mainBgColor = isDarkMode ? '#121212' : '#fafafa';
     const mainTextColor = isDarkMode ? '#fff' : '#000';
@@ -351,6 +393,8 @@ export default function OrderHistoryScreen() {
                             onRepurchase={handleRepurchase}
                             onCancel={handleCancel}
                             onReturn={handleReturn}
+                            onRateProduct={handleRateProduct}
+                            ratingLoadingId={ratingLoadingId}
                             cancellingId={cancellingId}
                             isDarkMode={isDarkMode}
                         />
