@@ -591,16 +591,41 @@ export default function HomeScreen() {
                                                 style={styles.heroOuterCard}
                                                 onPress={() => {
                                                     if (isApiBanner && item.link) {
-                                                        // Simplistic router handler
-                                                        if (item.link.includes('category/')) {
-                                                            const catName = item.link.split('/').pop();
+                                                        const link: string = item.link.trim();
+
+                                                        // Format: ProductDetails/<product-id>
+                                                        if (link.startsWith('ProductDetails/')) {
+                                                            const productId = link.replace('ProductDetails/', '');
+                                                            navigation.navigate('ProductDetails', { productId });
+                                                            return;
+                                                        }
+
+                                                        // Format: Catalog?category=<category>
+                                                        if (link.startsWith('Catalog?category=')) {
+                                                            const categoryName = decodeURIComponent(link.replace('Catalog?category=', ''));
+                                                            navigation.navigate('Catalog', { title: categoryName, action: 'category', categoryName });
+                                                            return;
+                                                        }
+
+                                                        // Format: plain screen names (Home, Catalog, Cart, OrderHistory, Profile, Wishlist)
+                                                        const plainScreenMap: Record<string, () => void> = {
+                                                            Home: () => navigation.navigate('Home'),
+                                                            Catalog: () => navigation.navigate('Catalog', { title: 'All Products', action: 'all' }),
+                                                            Cart: () => navigation.navigate('MainTabs', { screen: 'Cart' }),
+                                                            OrderHistory: () => navigation.navigate('OrderHistory'),
+                                                            Profile: () => navigation.navigate('MainTabs', { screen: 'Profile' }),
+                                                            Wishlist: () => navigation.navigate('Wishlist'),
+                                                        };
+                                                        if (plainScreenMap[link]) {
+                                                            plainScreenMap[link]();
+                                                            return;
+                                                        }
+
+                                                        // Legacy format: category/<name>
+                                                        if (link.includes('category/')) {
+                                                            const catName = link.split('/').pop();
                                                             const cat = CATEGORIES.find(c => c.name.toLowerCase() === catName?.toLowerCase()) || CATEGORIES[1];
                                                             navigation.navigate('Catalog', { title: cat.name, action: 'category', categoryName: cat.name });
-                                                        } else {
-                                                            const cat = CATEGORIES.find(c => c.id === (item.categoryId || '1'));
-                                                            if (cat) {
-                                                                navigation.navigate('Catalog', { title: item.title || 'Collection', action: 'category', categoryName: cat.name });
-                                                            }
                                                         }
                                                     } else if (!isApiBanner) {
                                                         const cat = CATEGORIES.find(c => c.id === item.categoryId);
