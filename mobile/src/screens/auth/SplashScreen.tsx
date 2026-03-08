@@ -53,7 +53,7 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
                         HYPEKART
                     </Typography>
                     <Typography variant="caption" style={[styles.subtitle, { color: isDarkMode ? '#666' : '#9ca3af' }]}>
-                        Premium Essentials
+                        The Home of Premium Streetwear
                     </Typography>
                 </Animated.View>
             )}
