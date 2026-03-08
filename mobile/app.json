@@ -23,7 +23,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.rohan_03.hypekart"
+      "package": "com.rohan_03.hypekart",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +39,9 @@
       "eas": {
         "projectId": "a73ae443-b969-46b0-9947-6bc9e5d1a29c"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a73ae443-b969-46b0-9947-6bc9e5d1a29c"
     }
   }
 }
