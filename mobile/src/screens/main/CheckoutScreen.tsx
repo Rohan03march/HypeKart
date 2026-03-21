@@ -61,7 +61,7 @@ const RAZORPAY_CHECKOUT_HTML = (keyId: string, orderId: string, amount: number, 
 
 export default function CheckoutScreen() {
     const navigation = useNavigation<any>();
-    const { items, getCartTotal, clearCart } = useCartStore();
+    const { items, getCartTotal, clearCart, appliedCoupon } = useCartStore();
     const { user } = useUser();
 
     const [step, setStep] = useState<'address' | 'payment'>('address');
@@ -71,9 +71,20 @@ export default function CheckoutScreen() {
     const [razorpayKeyId, setRazorpayKeyId] = useState('');
 
     const subtotal = getCartTotal();
-    const tax = subtotal * 0.18;
-    const shipping = subtotal >= 1500 ? 0 : 99;
-    const finalTotal = Math.round(subtotal + tax + shipping);
+
+    let discountAmount = 0;
+    if (appliedCoupon) {
+        if (appliedCoupon.discountType === 'percentage') {
+            discountAmount = subtotal * (appliedCoupon.discountValue / 100);
+        } else {
+            discountAmount = appliedCoupon.discountValue;
+        }
+    }
+    const discountedTotal = Math.max(0, subtotal - discountAmount);
+    
+    const tax = discountedTotal * 0.18;
+    const shipping = discountedTotal >= 1500 ? 0 : 99;
+    const finalTotal = Math.round(discountedTotal + tax + shipping);
 
     const { addresses, selectedAddressId } = useAddressStore();
     const selectedAddress = addresses.find(a => a.id === selectedAddressId) || addresses[0];
@@ -293,6 +304,12 @@ export default function CheckoutScreen() {
                         ))}
                         <View style={[styles.divider, { backgroundColor: borderColor }]} />
                         <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>Subtotal</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>₹{subtotal.toLocaleString('en-IN')}</Typography></View>
+                        {discountAmount > 0 && (
+                            <View style={styles.totalSummaryRow}>
+                                <Typography style={[styles.totalLabel, { color: '#16a34a' }]}>Discount</Typography>
+                                <Typography style={[styles.totalSummaryValue, { color: '#16a34a' }]}>-₹{discountAmount.toLocaleString('en-IN')}</Typography>
+                            </View>
+                        )}
                         <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>GST (18%)</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>₹{Math.round(tax).toLocaleString('en-IN')}</Typography></View>
                         <View style={styles.totalSummaryRow}><Typography style={[styles.totalLabel, { color: subtextColor }]}>Shipping</Typography><Typography style={[styles.totalSummaryValue, { color: textColor }]}>{shipping === 0 ? 'Free' : `₹${shipping}`}</Typography></View>
                         <View style={[styles.divider, { backgroundColor: borderColor }]} />

@@ -14,14 +14,13 @@ import { useAuth } from '@clerk/clerk-expo';
 const FREE_SHIPPING_THRESHOLD = 1500;
 
 export default function CartScreen() {
-    const { items, removeItem, updateQuantity, getCartTotal, getCartCount, expiresAt, clearCart } = useCartStore();
+    const { items, removeItem, updateQuantity, getCartTotal, getCartCount, expiresAt, clearCart, appliedCoupon, applyCoupon, removeCoupon } = useCartStore();
     const isDarkMode = useThemeStore(s => s.isDarkMode);
     const navigation = useNavigation<any>();
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const { userId } = useAuth();
 
     const [promoCode, setPromoCode] = useState('');
-    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountValue: number; discountType: 'percentage' | 'fixed' } | null>(null);
     const [isApplyingPromo, setIsApplyingPromo] = useState(false);
     const [promoError, setPromoError] = useState('');
 
@@ -41,7 +40,7 @@ export default function CartScreen() {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                setAppliedCoupon(data.coupon);
+                applyCoupon(data.coupon);
                 setPromoCode('');
             } else {
                 setPromoError(data.error || 'Invalid or expired promo code.');
@@ -54,7 +53,7 @@ export default function CartScreen() {
     };
 
     const handleRemoveCoupon = () => {
-        setAppliedCoupon(null);
+        removeCoupon();
     };
 
     const handleRemoveItem = async (productId: string, cartItemId: string) => {

@@ -12,9 +12,18 @@ export interface CartItem {
     isReserved?: boolean; // true only when stock was 1 and a 10-min server lock was created
 }
 
+export interface Coupon {
+    code: string;
+    discountValue: number;
+    discountType: 'percentage' | 'fixed';
+}
+
 interface CartState {
     items: CartItem[];
     expiresAt: number | null;
+    appliedCoupon: Coupon | null;
+    applyCoupon: (coupon: Coupon) => void;
+    removeCoupon: () => void;
     addItem: (item: Omit<CartItem, 'id'>) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
@@ -26,6 +35,10 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
     items: [],
     expiresAt: null,
+    appliedCoupon: null,
+
+    applyCoupon: (coupon) => set({ appliedCoupon: coupon }),
+    removeCoupon: () => set({ appliedCoupon: null }),
 
     addItem: (newItem) => {
         set((state) => {
@@ -71,7 +84,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         }));
     },
 
-    clearCart: () => set({ items: [], expiresAt: null }),
+    clearCart: () => set({ items: [], expiresAt: null, appliedCoupon: null }),
 
     getCartTotal: () => {
         return get().items.reduce((total, item) => total + (item.price * item.quantity), 0);
